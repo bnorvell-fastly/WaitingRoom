@@ -1,0 +1,6 @@
+/node_modules
+/bin
+/pkg
+/secrets
+/src/secrets
+/src/kv-store

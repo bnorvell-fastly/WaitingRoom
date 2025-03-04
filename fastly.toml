@@ -1,0 +1,61 @@
+# This file describes a Fastly Compute package. To learn more visit:
+# https://www.fastly.com/documentation/reference/compute/fastly-toml
+
+authors = ["brock@norvell.org"]
+cloned_from = "https://github.com/fastly/compute-starter-kit-javascript-empty"
+description = "Waiting Room testing w/Redis"
+language = "javascript"
+manifest_version = 3
+name = "Waiting-Room"
+service_id = "tmlVR93kdrIwXvcpGpxoC5"
+
+[local_server]
+
+  [local_server.backends]
+
+    [local_server.backends.protected_content]
+      override_host = "nuc.lan"
+      url = "http://nuc.lan/"
+
+    [local_server.backends.redis]
+      url = "https://hot-oryx-17303.upstash.io:443"
+
+  [local_server.kv_stores]
+
+    [[local_server.kv_stores.queueConfig]]
+      file = "./src/kv-store/globalConfig.json"
+      key = "globalConfig"
+
+    [[local_server.kv_stores.queueConfig]]
+      file = "./src/kv-store/response-headers.json"
+      key = "/response-headers"
+
+    [[local_server.kv_stores.queueConfig]]
+      file = "./src/kv-store/request-headers.json"
+      key = "/headers"
+
+    [[local_server.kv_stores.queueConfig]]
+      file = "./src/pages/admin.html"
+      key = "global_Admin"
+
+    [[local_server.kv_stores.queueConfig]]
+      file = "./src/pages/queue.html"
+      key = "global_Queue"
+
+  [local_server.secret_stores]
+
+    [[local_server.secret_stores.queue-secrets]]
+      file = "./src/secrets/globalConfig_private_key.json"
+      key = "global_privateKey"
+
+    [[local_server.secret_stores.queue-secrets]]
+      file = "./src/secrets/globalConfig_public_key.json"
+      key = "global_publicKey"
+
+    [[local_server.secret_stores.queue-secrets]]
+      file = "./src/secrets/globalConfig_redis.json"
+      key = "global_redisToken"
+
+[scripts]
+  build = "npm run build"
+  post_init = "npm install"

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Virtual Queue</title>
+  </head>
+  <body>
+    <div class="controls">
+      <form method="get" action="{{ adminBase }}">
+        <input type="hidden" name="bogon" value="10145" />
+        <input type="number" name="amt" value="1" />
+        <input type="submit" value="Let visitors in" />
+        
+      </form>
+
+      <br />
+
+      <p>There are <em>{{ visitorsWaiting }}</em> visitors waiting to enter.</p>
+    </div>
+  </body>
+</html>

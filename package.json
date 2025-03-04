@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@fastly/js-compute": "^3.32.2",
+    "@redis/client": "^1.6.0",
+    "@upstash/redis": "^1.34.4",
+    "base-64": "^1.0.0",
+    "jose": "^5.10.0",
+    "jws": "^4.0.0",
+    "node": "^23.8.0",
+    "redis": "^4.7.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@fastly/cli": "^10.14.0"
+  },
+  "scripts": {
+    "build": "js-compute-runtime ./src/index.js ./bin/main.wasm",
+    "start": "fastly compute serve",
+    "deploy": "fastly compute publish"
+  }
+}
