@@ -1,0 +1,19 @@
+{
+    "queueName": "sample-queue",
+    "active": true,
+    "expires": "",
+    "adminPassword": "changeMe",
+    "adminPath": "",
+    "geocodes": "",
+    "refreshInterval": 15,
+    "cookieName": "sample-queue",
+    "cookieExpiry": "",
+    "automatic": 60,
+    "automaticQuantity": 100,
+    "redisUrl": "",
+    "redisToken": "",
+    "queuePage": "",
+    "adminPage": "",
+    "privateKey": "",
+    "publicKey": ""
+}
