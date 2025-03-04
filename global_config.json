@@ -1,0 +1,22 @@
+{
+    "queueName": "global_config",
+    "forceDebug": true,
+    "active": false,
+    "expires": "",
+    "adminPassword": "password",
+    "adminPath": "_queueAdmin",
+    "queues": [
+        [ "Sample-Queue", "/sample_queue"]
+    ],
+    "refreshInterval": 10,
+    "cookieName": "global-queue",
+    "cookieExpiry": 86400,
+    "automatic": 60,
+    "automaticQuantity": 5,
+    "redisUrl": "https://your.redis.url:443",
+    "redisToken": "global_redisToken",
+    "queuePage": "global_Queue",
+    "adminPage": "global_Admin",
+    "privateKey": "global_privateKey",
+    "publicKey": "global_publicKey"
+}
