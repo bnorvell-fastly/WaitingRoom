@@ -209,7 +209,7 @@ async function handleRequest(event) {
             visitorPosition - queueCursor
         );
     } else {
-        request.headers.set(`QUEUE-ID`, payload.UUID);
+        // request.headers.set(`QUEUE-ID`, payload.UUID);
         var response = await handleAuthorizedRequest(request);
     }
 
