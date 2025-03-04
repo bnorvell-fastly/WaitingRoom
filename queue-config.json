@@ -1,5 +1,6 @@
 {
     "queueName": "sample-queue",
+    "queuePath": "/samplequeue",
     "active": true,
     "expires": "",
     "adminPassword": "changeMe",
