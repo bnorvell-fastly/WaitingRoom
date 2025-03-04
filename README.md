@@ -1,30 +1,17 @@
-# Empty Starter Kit for JavaScript
+# Javascript Waiting Room
 
-[![Deploy to Fastly](https://deploy.edgecompute.app/button)](https://deploy.edgecompute.app/deploy)
+Waiting room application for your endpoints. This uses Fastly Compute, with the Key Value store, and Secret store being used
+to store configurations, and keys/tokens respectively.
 
-An empty application template for the Fastly Compute environment which returns a 200 OK response.
+Redis is uses to store the Waiting Room state, and this leverages the upstash.io SDK to connect to an HTTPS based redis instance.
 
-**For more details about other starter kits for Compute, see the [Fastly developer hub](https://developer.fastly.com/solutions/starters)**
+See global_config.json for an example of the global configuration object
+See queue_config.json for an example of the per queue configuration object
 
-## Running the application
+RSA public and private keys are in PEM format, and must be written to the config store properly or misc. errors will be thrown.
+TODO : provide example cmdline for openssl to create keys that can be used.
 
-To create an application using this starter kit, create a new directory for your application and switch to it, and then type the following command:
-
-```shell
-npm create @fastly/compute@latest -- --language=javascript --starter-kit=empty
-```
-
-To build and run your new application in the local development environment, type the following command:
-
-```shell
-npm run start
-```
-
-To build and deploy your application to your Fastly account, type the following command. The first time you deploy the application, you will be prompted to create a new service in your account.
-
-```shell
-npm run deploy
-```
+Redis connection is using an API token, not a user/password. Store this token in the secret store as well.
 
 ## Security issues
 

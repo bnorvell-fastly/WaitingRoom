@@ -1,8 +1,8 @@
 # This file describes a Fastly Compute package. To learn more visit:
 # https://www.fastly.com/documentation/reference/compute/fastly-toml
 
-authors = ["brock@norvell.org"]
-cloned_from = "https://github.com/fastly/compute-starter-kit-javascript-empty"
+authors = ["bnorvell@fastly.com"]
+cloned_from = ""
 description = "Waiting Room testing w/Redis"
 language = "javascript"
 manifest_version = 3
