@@ -250,11 +250,16 @@ async function handleAuthorizedRequest(req) {
 // Handle an incoming request that is not yet authorized to access protected content.
 async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     if (visitorsAhead < 0) visitorsAhead = 0;
-    return new Response(
+
+    // Calculate time remaining in queue (#of people ahead, * rps of people allowed)
+    let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic).toFixed(0);
+
+;    return new Response(
         processView(config.pages.waiting_room, {
             visitorsAhead: visitorsAhead.toLocaleString(),
             visitorsVerb: visitorsAhead == 1 ? "is" : "are",
-            visitorsPlural: visitorsAhead == 1 ? "person" : "people"
+            visitorsPlural: visitorsAhead == 1 ? "person" : "people",
+            estimatedTime: (queueTime > 0 && queueTime <86400) ? new Date(queueTime*1000).toTimeString().split(' ')[0] : "unknown"
         }),
         {
             status: 200,
