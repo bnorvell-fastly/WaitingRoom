@@ -4,15 +4,20 @@
     "active": false,
     "expires": "",
     "adminPassword": "password",
-    "adminPath": "_queueAdmin",
+    "adminPath": "/QueueAdmin",
     "queues": [
-        [ "Sample-Queue", "/sample_queue"]
+        [ "/sample-path", "sample"],
+        [ "^/html", "html"]
     ],
-    "refreshInterval": 10,
+    "whitelist": [
+        "/robots.txt",
+        "/favicon.ico"
+    ],
+    "refreshInterval": 15,
     "cookieName": "global-queue",
     "cookieExpiry": 86400,
-    "automatic": 60,
-    "automaticQuantity": 5,
+    "automatic": 0,
+    "automaticQuantity": 0,
     "redisUrl": "https://your.redis.url:443",
     "redisToken": "global_redisToken",
     "queuePage": "global_Queue",

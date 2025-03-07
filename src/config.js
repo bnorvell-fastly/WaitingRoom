@@ -1,13 +1,11 @@
-import { ConfigStore } from "fastly:config-store";
+import { ConfigStore } from "fastly:config-store"; // Future use
 import { KVStore } from "fastly:kv-store";
 import { SecretStore } from "fastly:secret-store";
+import { DEBUG } from "./index.js";
 
-// Turn Debug logs off by default. Enable during run time by setting header Fastly-Debug
-// timer is a generic for tracking timings when DEBUG is enabled (see console.log calls throughout)
-export const DEBUG = 0;
 
 // Since we use the same methods for config and kv stores, this is interchangeable.
-async function get_kv_entry(key_store, key_value, as_json) {
+export async function get_kv_entry(key_store, key_value, as_json) {
 
     try {
         var kv_data = await key_store.get(key_value);
@@ -17,26 +15,24 @@ async function get_kv_entry(key_store, key_value, as_json) {
     }
 
     if(kv_data === null) {
-        console.log("Key not found:", key_value);
+        if(DEBUG)  console.log("Key not found:", key_value);
         return "";
     }
-
+    
     if (as_json) return await kv_data.json();
     else         return await kv_data.text();
 }
 
-async function put_kv_entry(key_store, key, key_value) {
-
+export async function put_kv_entry(key_store, key, key_value) {
     try {
         await key_store.put(key, key_value, { mode:'overwrite' });
     } catch(e) {
         console.log("key_store.put:",e);
         return "";
     }
-
 }
 
-async function get_secret_entry(key_store, key_value, plaintext) {
+export async function get_secret_entry(key_store, key_value, plaintext) {
 
     try {
         var kv_data = await key_store.get(key_value);
@@ -46,16 +42,15 @@ async function get_secret_entry(key_store, key_value, plaintext) {
     }
 
     if(kv_data === null) {
-        console.log("Secret not found:", key_value);
+        if(DEBUG) console.log("Secret not found:", key_value);
         return "";
     }
     if (plaintext) return await kv_data.plaintext();
     else return await kv_data.rawBytes();
 }
 
-// Write a configuration object to the KV store.
-export async function writeConfig(queue_path, configObject) {
-
+// Function here in case we want/need to do some more extensive logic in the future.
+export async function writeConfig(key, config) {
     try {
         var kv_store = new KVStore('queueConfig');
     } catch (e) {
@@ -63,12 +58,65 @@ export async function writeConfig(queue_path, configObject) {
         return "";
     }
     
-    put_kv_entry(kv_store, queue_path, configObject);
+    put_kv_entry(kv_store, key, config);
+}
+
+// Get global configuration (contains all queue config references, and system defaults)
+export async function fetchGlobalConfig() {
+    try {
+        var kv_store = new KVStore('queueConfig');
+    } catch (e) {
+        console.log(`kv_store.open: ${e}`);
+        return "";
+    }
+    
+    let globalConfig = await get_kv_entry(kv_store, "globalConfig",1);
+
+    // If we didn't find a config entry, set defaults and save
+    if(!globalConfig) {
+        globalConfig = {
+            "queueName": "global_config",
+            "forceDebug": true,
+            "active": false,
+            "expires": "",
+            "adminPassword": "change me soon",
+            "adminPath": "_queue",
+            "queues": [
+                [ "sample_queue", "/sample_path" ],
+            ],
+            "whitelist": [
+                "/robots.txt",
+                "/favicon.ico"
+            ],
+            "refreshInterval": 15,
+            "cookieName": "global-queue",
+            "cookieExpiry": 86400,
+            "automatic": 60,
+            "automaticQuantity": 0,
+            "redisUrl": "https://your.redis.instance:443",
+            "redisToken": "global_redisToken",
+            "queuePage": "global_Queue",
+            "adminPage": "global_Admin",
+            "privateKey": "global_privateKey",
+            "publicKey": "global_publicKey"                
+        };
+
+        // Write this default back out to the KV store
+        await put_kv_entry(kv_store, "globalConfig", JSON.stringify(globalConfig));
+
+        // Re-read the config back into memory
+        // This ensures that a) we wrote it properly and b) that it's in the local KV cache
+        // for future requests
+        globalConfig = await get_kv_entry(kv_store, "globalConfig",1);
+    }
+    
+    // Return the config object
+    return globalConfig;
 }
 
 // Get configuration from KV Store and Secret Store
 // Read in global config, then apply queue specific override to it if necessary
-export async function fetchConfig(queue_path) {
+export async function fetchQueueConfig(globalConfig, queueName) {
 
     try {
         var kv_store = new KVStore('queueConfig');
@@ -83,14 +131,20 @@ export async function fetchConfig(queue_path) {
         console.log(`secret_store.open: ${e}`);
         return "";
     }
+    
+    if(DEBUG) console.log(`==> Loading config data for queue [${queueName}]`);
+
     // Get global queue config, then get request path config, if path not found, return empty so no processing occurs
-    let globalConfig = await get_kv_entry(kv_store, "globalConfig",1);
-    let queueConfig = await get_kv_entry(kv_store, queue_path,1);
-    if (!globalConfig || !queueConfig) return "";
+    let queueConfig = await get_kv_entry(kv_store, queueName,1);
+    if(!queueConfig) {
+        if(DEBUG) console.log(`No queue for path [${queueName}]`);
+        return "";
+    }
 
     // Anything not overriden, gets copied from the globalConfig object. Yes, this is redundant with providing
     // both objects, but it reduces additional logic in other places. We always presume that the queueConfig
     // is the source of truth.
+    // Todo - make this an iterator, instead of individuals
     if(!queueConfig.adminPath) queueConfig.adminPath = globalConfig.adminPath;
     if(!queueConfig.adminPassword) queueConfig.adminPassword = globalConfig.adminPassword;
 
@@ -106,7 +160,6 @@ export async function fetchConfig(queue_path) {
     if(!queueConfig.adminPage) queueConfig.adminPage = globalConfig.adminPage;
     if(!queueConfig.privateKey) queueConfig.privateKey = globalConfig.privateKey;
     if(!queueConfig.publicKey) queueConfig.publicKey = globalConfig.publicKey;
-
     
     // Load the waiting and admin room pages into memory
     let waiting_room = await get_kv_entry(kv_store, queueConfig.queuePage);
@@ -114,7 +167,7 @@ export async function fetchConfig(queue_path) {
     
     // Load keys for JWT processing
     let publicKey = JSON.parse(await get_secret_entry(secret_store, queueConfig.publicKey, 1));
-    let privateKey = JSON.parse(await get_secret_entry(secret_store, queueConfig.privateKey, 1));        
+    let privateKey = JSON.parse(await get_secret_entry(secret_store, queueConfig.privateKey, 1));
     
     // Load the redis configuration
     let redisUrl = queueConfig.redisUrl;
@@ -122,7 +175,6 @@ export async function fetchConfig(queue_path) {
 
     // Return all the config data as a single JSON object in memory
     return {
-        global: globalConfig,
         queue: queueConfig,
         publicKey: publicKey,
         privateKey: privateKey,
@@ -133,7 +185,7 @@ export async function fetchConfig(queue_path) {
             // the path for serving the admin interface and API
             //
             // set to null to disable the admin interface
-            path: `${queue_path}/${queueConfig.adminPath}`,
+            path: queueConfig.adminPath,
 
             // the password for the admin interface, requested
             // when the admin path is accessed via HTTP Basic Auth

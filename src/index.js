@@ -15,8 +15,6 @@ const CONTENT_BACKEND = "protected_content";
 // TODO : Make this whitelist a config store object, for paths or objects that are NEVER to be placed into a 
 //        waiting room
 const QUEUE_WHITELIST = [
-    "/robots.txt",
-    "/favicon.ico",
     "/assets/background.jpg",
     "/assets/logo.svg",
 ];
@@ -25,7 +23,7 @@ const QUEUE_WHITELIST = [
 // Move to global config object, or make a per-queue configuration
 const LOG_ENDPOINT = "queue_logs";
 
-import { fetchConfig } from "./config.js";
+import { fetchGlobalConfig, fetchQueueConfig } from "./config.js";
 import { handleAdminRequest } from "./admin.js";
 import * as Store from "./store.js";
 import log from "./logging.js";
@@ -34,8 +32,8 @@ import log from "./logging.js";
 import { allowDynamicBackends } from "fastly:experimental";
 import { getGeolocationForIpAddress } from "fastly:geolocation";
 
-export var DEBUG = 0;
 var timer = 0;
+export var DEBUG = 0;
 
 addEventListener("fetch", (event) => event.respondWith(handleRequest(event)));
 
@@ -45,83 +43,88 @@ async function handleRequest(event) {
     let HOST = env("FASTLY_HOSTNAME");
     let redis = "";
 
+
     const { request, client } = event;
     
     console.log(`=> Service Version : ${VERSION} running on ${HOST} from ${client.address} <=`);
   
+    // Get the global configuration object
+    let globalConfig = await fetchGlobalConfig();
 
-    // If we pass a Fastly-Debug header, set debug flag for helpful logging output to console.
-    DEBUG = request.headers.has("Fastly-Debug");
-    
+    // If we pass a Fastly-Debug header, set debug otherwise use the global config value
+    request.headers.has("Fastly-Debug")?DEBUG=1:DEBUG=globalConfig.forceDebug;
+
     const url = new URL(request.url);
     let queuePath = url.pathname;
 
-    // Check the allowed paths first, so we don't incur any penalty on those.
-    // Allow requests to assets that are not protected by a queue, or the queue is disabled.
-    if (QUEUE_WHITELIST.includes(url.pathname)) {
+    // Check the global whitelist first, so we don't incur any penalty on those.
+    if (globalConfig.whitelist.includes(queuePath)) {
         return await handleAuthorizedRequest(request);
     }
-    
-    // If we're looking for an admin page (_queue), strip the trailing path objects
-    // so we can find the root queue.
-    if(url.pathname.includes("/_queue")) queuePath = removeFileFromUrl(url);   
 
-    // Check for a queue attached to this path, get global config while we're at it
-    let config = await fetchConfig(queuePath);
-    
     // Handle global administration 
-    if(url.pathname === "/QueueAdmin")
-        return await handleAdminRequest(request, url.pathname, config, redis);
-        
-    // If we don't have a queue defined for this path, process the request
-    if(!config)
-        return await handleAuthorizedRequest(request);
+    if(url.pathname === globalConfig.adminPath)
+        return await handleAdminRequest(request, url.pathname, globalConfig, redis);
     
-    // Global debug configuration
-    if(config && config.global.forceDebug) DEBUG=1;
-
-    // Configure the Redis interface.
-    redis = Store.getStore(config);
+    // Find the queue in the global config object, then load it's configuration
+    // No queue config ? Let them have the page.
+    let queueName = "";
+    
+    console.log(`:: QueuePath: ${queuePath}`);
+    globalConfig.queues.forEach(queue => {
+        let pathRegex = new RegExp(queue[0]);
+        console.log(`::- Checking [${queue[0]}]`)
+        if(pathRegex.test(queuePath)) queueName = queue[1];
+    });
+    
+    let queueConfig = await fetchQueueConfig(globalConfig, queueName);
+    if(!queueConfig)
+        return await handleAuthorizedRequest(request);
+  
+     // Configure the Redis interface.
+    redis = Store.getStore(queueConfig);
 
     // Handle requests to admin endpoints.
-    if (config.admin.path && url.pathname.startsWith(config.admin.path) || url.pathname === "/QueueAdmin")
-        return await handleAdminRequest(request, url.pathname, config, redis);
+    // if (.admin.path && url.pathname.startsWith(config.admin.path) || url.pathname === "/QueueAdmin")
     
     // Allow requests to assets that are not protected by a queue, or the queue is disabled.
-    if (!config.queue.active) 
-      return await handleAuthorizedRequest(request);
+    if (!queueConfig.queue.active) {
+        if(DEBUG) console.log("==> Queue is not active", queueConfig.queue.active);
+        return await handleAuthorizedRequest(request);
+    }
     
-
     // If we are queueing by country, check membership
-    if (!config.queue.geocodes.includes(client.geo.country_code3) && config.queue.geocodes) {
+    if (queueConfig.queue.geocodes && !queueConfig.queue.geocodes.includes(client.geo.country_code3)) {
         // We are not in the listed countries for queueing, so process the request
         if(DEBUG) 
-            console.log(`=> Country exception applied: ${config.queue.geocodes} configured for queueing, client in ${clientGeo.country_code3}`);
+            console.log(`=> Country exception applied: ${queueConfig.queue.geocodes} configured for queueing, client in ${clientGeo.country_code3}`);
         return await handleAuthorizedRequest(request);
     }
 
-    if(DEBUG) console.log(`=> Begin processing for queue ${config.queue.queueName}`);
-    jwt_cookie = getQueueCookie(request, config.queue.cookieName);
+    if(DEBUG) console.log(`=> Begin processing for queue ${queueConfig.queue.queueName}`);
     
+    let jwt_cookie = getQueueCookie(request, queueConfig.queue.cookieName);
+
     let isValid = 0;
     if(jwt_cookie) {
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
-            var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, config.publicKey, {
+            var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
                 issuer: 'urn:example:issuer',
                 audience: 'urn:example:audience',
-                subject: config.queue.queueName,
+                subject: queueConfig.queue.queueName,
             })
             
         } catch (e) {
             // Log error here if desired. A failed token could be one that's expired, or someone trying to do 
             // something interesting with the cookie to subvert the queue.
-            if(DEBUG) console.error(`=> Expired or Invalid token (${config.queue.queueName}), new token will be issued.\n=> Error: ${e}`);
+            if(DEBUG) 
+                console.error(`=> Expired or Invalid token (${queueConfig.queue.queueName}), new token will be issued.\n=> Error: ${e}`);
         }
             
         // We have a properly signed cookie, let check the internals      
         if(payload) {
-            var UUIDPosition = await Store.checkQueuePosition(redis, config, payload.UUID);
+            var UUIDPosition = await Store.checkQueuePosition(redis, queueConfig, payload.UUID);
             
             isValid =
                 payload &&
@@ -142,59 +145,57 @@ async function handleRequest(event) {
         visitorPosition = payload.position;
     } else {
         // Generate a UUID to associate with this queue position
-        timer = performance.now();
         let tokenUUID = uuidv7();
-        if(DEBUG) console.log(`*=> Generated a UUIDv7 in ${performance.now()-timer}ms`);
-
+        
         // Add a new visitor to the end of the queue.
-        visitorPosition = await Store.incrementQueueLength(redis, config, tokenUUID);
+        visitorPosition = await Store.incrementQueueLength(redis, queueConfig, tokenUUID);
 
         // Sign a JWT with the visitor's position.
         // TODO : Set the expiration of the cookie more intelligently (look at queue expiration, etc)
         timer = performance.now();        
         try {
             newToken = await new jose.SignJWT(
-                    { 'position': visitorPosition, 'expiry':new Date(Date.now() + config.queue.cookieExpiry * 1000), 'UUID':tokenUUID }
+                    { 'position': visitorPosition, 'expiry':new Date(Date.now() + queueConfig.queue.cookieExpiry * 1000), 'UUID':tokenUUID }
                 )
                 .setProtectedHeader( {alg} )
                 .setIssuedAt()
                 .setIssuer('urn:example:issuer')
                 .setAudience('urn:example:audience')
-                .setExpirationTime(new Date(Date.now() + config.queue.cookieExpiry * 1000))
-                .setSubject(config.queue.queueName)
-                .sign(config.privateKey)
+                .setExpirationTime(new Date(Date.now() + queueConfig.queue.cookieExpiry * 1000))
+                .setSubject(queueConfig.queue.queueName)
+                .sign(queueConfig.privateKey)
         } catch(e) {
-            console.log("Signing Error: ",e);
+            console.log("Signing Error: ",e,"\nToken not created");
         }      
-        if(DEBUG) console.log(`*=> Generated an ${alg} Token in ${performance.now()-timer}ms`);
+        if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer}ms`);
 
     }
 
     // Fetch the current queue cursor
-    let queueCursor = await Store.getQueueCursor(redis, config);
+    let queueCursor = await Store.getQueueCursor(redis, queueConfig);
     
     // Check if the queue has reached the visitor's position yet.
     let permitted = (queueCursor >= visitorPosition);
-    if(DEBUG) console.log(`=> Visitor Position: ${visitorPosition} | Cursor: ${queueCursor} | Permitted: ${permitted})`);
+    if(DEBUG) console.log(`=> Visitor Position: ${visitorPosition} | Cursor: ${queueCursor} | Permitted: ${permitted}`);
 
     // If we aren't permitted yet, and the automatic allow of users users is enabled, lets process that logic
-    if (!permitted && config.queue.automatic > 0) {     
+    if (!permitted && queueConfig.queue.automatic > 0) {     
              
         // New request, see if we're letting anyone through yet this period (configured in global, and per queue objects)
         // This function sets a TTL on the Period record to expire at the end of the automaticPeriod, so the next period
         // will always start at 0
-        reqsThisPeriod = await Store.incrementAutoPeriod(redis, config);        
+        reqsThisPeriod = await Store.incrementAutoPeriod(redis, queueConfig);
 
-        // if(DEBUG) console.log(`S: ${reqsThisPeriod} Q: ${config.queue.automatic} A:${config.queue.automaticQuantity}`);
+        // if(DEBUG) console.log(`S: ${reqsThisPeriod} Q: ${queueConfig.automatic} A:${queueConfig.automaticQuantity}`);
      
         // If we've not yet allowed the configured # of people through the queue this period, then check placement in line,
         // and let them through if they qualify
         // The 1st request during the new period will automatically bump the cursor, since the 1st request will always set
         // reqsThisPeriod to 1.
         if (reqsThisPeriod === 1) {
-            if(DEBUG) console.log(`=> Allowing the next ${config.queue.automaticQuantity} queue memebers`);
+            if(DEBUG) console.log(`=> Allowing the next ${queueConfig.queue.automaticQuantity} queue memebers`);
             
-            queueCursor = await Store.incrementQueueCursor( redis, config, config.queue.automaticQuantity );
+            queueCursor = await Store.incrementQueueCursor( redis, queueConfig, queueConfig.queue.automaticQuantity );
 
             if (visitorPosition < queueCursor) {
                 permitted = true;
@@ -205,11 +206,10 @@ async function handleRequest(event) {
     if (!permitted) {
         var response = await handleUnauthorizedRequest(
             request,
-            config,
+            queueConfig,
             visitorPosition - queueCursor
         );
     } else {
-        // request.headers.set(`QUEUE-ID`, payload.UUID);
         var response = await handleAuthorizedRequest(request);
     }
 
@@ -217,7 +217,7 @@ async function handleRequest(event) {
     if (newToken) {
         response.headers.set(
             "Set-Cookie",
-            `${config.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${config.queue.cookieExpiry}; SameSite=None`
+            `${queueConfig.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${queueConfig.queue.cookieExpiry}; SameSite=None`
         );
     }
 
@@ -233,12 +233,13 @@ async function handleRequest(event) {
             visitorPosition,
         }
     );
-    if(DEBUG) console.log(`Used ${config.rediscount} redis operations.`);
+    if(DEBUG) console.log(`Used ${queueConfig.rediscount} redis operations.`);
     return response;
 }
 
 // Handle an incoming request that has been authorized to access protected content.
 async function handleAuthorizedRequest(req) {
+    if(DEBUG) console.log(`Auth'd req to ${req.url}`);
     return await fetch(req, {
         backend: CONTENT_BACKEND,
         ttl: 86400,
@@ -264,21 +265,18 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
 }
 
 function getQueueCookie(req, cookieName) {
-    let value = "";
+    let cookieData = "";
     let cookies = req.headers.get('cookie');
-
     if (cookies) {
         cookies.split(';').forEach(cookie => {
             const parts = cookie.split('=');
             const name = parts.shift().trim();
-            value = decodeURIComponent(parts.join('='));
             if(name === cookieName) {
-                if(DEBUG) console.log(`=> found cookie ${cookieName} (${value.length} bytes)`); 
-                return value;
+                  cookieData = decodeURIComponent(parts.join('='));
             }
         });
     }
-    return value;
+    return cookieData;
 }
 
 // Injects props into the given template (handlebars syntax)

@@ -7,18 +7,18 @@ description = "Waiting Room testing w/Redis"
 language = "javascript"
 manifest_version = 3
 name = "Waiting-Room"
-service_id = "tmlVR93kdrIwXvcpGpxoC5"
+service_id = ""
 
 [local_server]
 
   [local_server.backends]
 
     [local_server.backends.protected_content]
-      override_host = "nuc.lan"
-      url = "http://nuc.lan/"
+      override_host = "httpbin.org"
+      url = "http://httpbin.org/"
 
     [local_server.backends.redis]
-      url = "https://hot-oryx-17303.upstash.io:443"
+      url = "https://your.redis.host:443"
 
   [local_server.kv_stores]
 
@@ -28,11 +28,11 @@ service_id = "tmlVR93kdrIwXvcpGpxoC5"
 
     [[local_server.kv_stores.queueConfig]]
       file = "./src/kv-store/response-headers.json"
-      key = "/response-headers"
+      key = "response-headers"
 
     [[local_server.kv_stores.queueConfig]]
       file = "./src/kv-store/request-headers.json"
-      key = "/headers"
+      key = "html"
 
     [[local_server.kv_stores.queueConfig]]
       file = "./src/pages/admin.html"
@@ -45,11 +45,11 @@ service_id = "tmlVR93kdrIwXvcpGpxoC5"
   [local_server.secret_stores]
 
     [[local_server.secret_stores.queue-secrets]]
-      file = "./src/secrets/globalConfig_private_key.json"
+      file = "./src/secrets/private_key.json"
       key = "global_privateKey"
 
     [[local_server.secret_stores.queue-secrets]]
-      file = "./src/secrets/globalConfig_public_key.json"
+      file = "./src/secrets/public_key.json"
       key = "global_publicKey"
 
     [[local_server.secret_stores.queue-secrets]]

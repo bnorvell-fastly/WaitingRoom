@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis/fastly";
-//import Redis from "redis"; // - This does not work due to node.js dependencies that Fastly does not support
+1//import Redis from "redis"; // - This does not work due to node.js dependencies that Fastly does not support
 
 // Typical usage (billing implications) :
 // Each compute request will consume 1 connection to Redis. 
@@ -32,7 +32,6 @@ export async function incrementQueueCursor(store, config, amt) {
     if(amt === 0) return 0;
 
     config.rediscount++;
-    console.log(`cursor increment: ${config.queue.queueName}/${amt}`);
     return await store.incrby(`${config.queue.queueName}:cursor`, amt);
 }
 
