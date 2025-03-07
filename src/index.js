@@ -59,6 +59,7 @@ async function handleRequest(event) {
 
     // Check the global whitelist first, so we don't incur any penalty on those.
     if (globalConfig.whitelist.includes(queuePath)) {
+        if(DEBUG) console.log(`=> Whitelisted: ${queuePath}`);
         return await handleAuthorizedRequest(request);
     }
 
