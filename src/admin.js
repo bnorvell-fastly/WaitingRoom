@@ -152,7 +152,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                         <tr> <td><label for="publicKey">Secret Store key for your cookie public key</label></td>
                         <td><input type="text" size=60 name="publicKey" value="${queueConfig.queue.publicKey}"></td>
 
-                        <tr> <td><input type="submit" value="Save Configuiration Changes"></td>
+                        <tr> <td><input type="submit" value="Save Configuration Changes"></td>
                         </table>
                         </form>
                         <br>
