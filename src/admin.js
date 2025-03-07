@@ -12,10 +12,20 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     let newConfig = {};           
     
     if(DEBUG) console.log(`==> Admin request for ${path}`);
-
     if(DEBUG) console.log("==> Pass:", globalConfig.adminPassword);
 
     const reqUrl = new URL(req.url);
+    
+    // This is not secure, replace it with something far more robust
+    if (req.headers.get("Authorization") != `Basic ${base64.encode(`admin:${globalConfig.adminPassword}`)}`)
+    {
+        return new Response(null, {
+            status: 401,
+            headers: {
+                "WWW-Authenticate": 'Basic realm="Global Queue Administration"',
+            },
+        });
+    }
     
     // If we're administering a single queue, lets get that configuration
     if(reqUrl.searchParams.has("queue")) {
@@ -26,17 +36,12 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 
         // Get the queue configuration
         let queueConfig = await fetchQueueConfig(globalConfig, queue);
-
-        // ask for auth using the configured store (or global) credentials
-        if ( queueConfig.admin.password &&
-            req.headers.get("Authorization") != `Basic ${base64.encode(`admin:${queueConfig.admin.password}`)}`
-        ){
-            return new Response(null, {
-                status: 401,
-                headers: {
-                    "WWW-Authenticate": `Basic realm="Queue ${queueConfig.queue.queueName} Admin"`,
-                },
-            });
+        if(!queueConfig) {
+            if(DEBUG) console.log(`==> Admin: No queue found for ${queue}`);
+            return new Response("No queue found", {
+                status: 404,
+            });    
+        
         }
 
         // Configure the Redis interface (this wont be open yet if we're in admin)
@@ -130,17 +135,6 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                 headers: { "Content-Type": "text/html", },
             }
             );
-    }
-
-    // Performing global configuration
-    if (req.headers.get("Authorization") != `Basic ${base64.encode(`admin:${globalConfig.adminPassword}`)}`)
-    {
-        return new Response(null, {
-            status: 401,
-            headers: {
-                "WWW-Authenticate": 'Basic realm="Global Queue Administration"',
-            },
-        });
     }
 
     // If we're posting new data, then update the record accordingly, and write it back to the KV store
