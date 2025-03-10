@@ -23,7 +23,12 @@ See queue_config.json for an example of the per queue configuration object (path
 RSA public and private keys are in JSWK format, and must be written to the config store properly or misc. errors will be thrown.
 
 #### TODO
+- Create a new queue from the admin interface
+- Manage the global whitelist
+- Add queue specific whitelists
+- refactor debug and system logging globally
 - Example cmdline/process for creating JWKS keys
+  - Possibly create new JWKS keys for the user ?
 - move sample confiugurations to directory supported by the toml file for local testing
 - Explain the redis key schema
 
