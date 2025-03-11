@@ -217,8 +217,10 @@ async function handleRequest(event) {
     }
 
     // Set a cookie on the response if needed and return it to the client.
+    // There can be multiple set-cookie headers, use append, and not get so that any other
+    // set-cookies don't get overwritten.
     if (newToken) {
-        response.headers.set(
+        response.headers.append(
             "Set-Cookie",
             `${queueConfig.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${queueConfig.queue.cookieExpiry}; SameSite=None`
         );
@@ -255,15 +257,30 @@ async function handleAuthorizedRequest(req) {
 async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     if (visitorsAhead < 0) visitorsAhead = 0;
 
-    // Calculate time remaining in queue (#of people ahead, * rps of people allowed)
+    // Calculate time remaining in queue
+    // - people ahead of you / (# of users per second we allow) = seconds remaining
     let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic).toFixed(0);
+    let queueDate = new Date(queueTime*1000);
+    let queueString = "";
+    
+    // Make a string for the queue time remaining.
+    
+    if( queueTime > 86400) {
+         queueString = "unknown";
+    } else if(queueTime > 3600) {
+        // We have  > 1 hour remaining
+        queueString = `${queueDate.getHours()} hours, ${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
+    } else {
+        // < 1 hour remaining
+        queueString = `${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
+    }
 
-;    return new Response(
+    return new Response(
         processView(config.pages.waiting_room, {
             visitorsAhead: visitorsAhead.toLocaleString(),
             visitorsVerb: visitorsAhead == 1 ? "is" : "are",
             visitorsPlural: visitorsAhead == 1 ? "person" : "people",
-            estimatedTime: (queueTime > 0 && queueTime <86400) ? new Date(queueTime*1000).toTimeString().split(' ')[0] : "unknown"
+            estimatedTime: queueString
         }),
         {
             status: 200,
