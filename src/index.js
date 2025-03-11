@@ -57,6 +57,8 @@ async function handleRequest(event) {
     const url = new URL(request.url);
     let queuePath = url.pathname;
 
+    if(DEBUG) console.log(`=> Incoming request : ${url}`);
+
     // Check the global whitelist first, so we don't incur any penalty on those.
     if (globalConfig.whitelist.includes(queuePath)) {
         if(DEBUG) console.log(`=> Whitelisted: ${queuePath}`);
@@ -234,17 +236,19 @@ async function handleRequest(event) {
             visitorPosition,
         }
     );
-    if(DEBUG) console.log(`Used ${queueConfig.rediscount} redis operations.`);
+    
+    if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations.`);
+    if(DEBUG) console.log(`=> Backend status: ${response.status}`);
     return response;
 }
 
 // Handle an incoming request that has been authorized to access protected content.
 async function handleAuthorizedRequest(req) {
-    if(DEBUG) console.log(`Auth'd req to ${req.url}`);
-    return await fetch(req, {
-        backend: CONTENT_BACKEND,
-        ttl: 86400,
+    if(DEBUG) console.log(`=> Auth'd req to ${req.url}`);
+    return await fetch(req,{
+        backend: CONTENT_BACKEND
     });
+
 }
 
 // Handle an incoming request that is not yet authorized to access protected content.
