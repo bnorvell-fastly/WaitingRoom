@@ -73,10 +73,10 @@ async function handleRequest(event) {
     // No queue config ? Let them have the page.
     let queueName = "";
     
-    console.log(`:: QueuePath: ${queuePath}`);
+    if(DEBUG) console.log(`:: QueuePath: ${queuePath}`);
     globalConfig.queues.forEach(queue => {
         let pathRegex = new RegExp(queue[0]);
-        console.log(`::- Checking [${queue[0]}]`)
+        if(DEBUG) console.log(`::- Checking queue ${queue[1]} with path [${queue[0]}]`)
         if(pathRegex.test(queuePath)) queueName = queue[1];
     });
     
@@ -265,15 +265,15 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     
     // Make a string for the queue time remaining.
     
-    if( queueTime > 86400) {
+    if( queueTime > 86400)
          queueString = "unknown";
-    } else if(queueTime > 3600) {
+    else if(queueTime > 3600)
         // We have  > 1 hour remaining
         queueString = `${queueDate.getHours()} hours, ${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
-    } else {
+    else
         // < 1 hour remaining
         queueString = `${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
-    }
+    
 
     return new Response(
         processView(config.pages.waiting_room, {

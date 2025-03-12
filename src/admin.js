@@ -13,8 +13,8 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     let configName = "globalConfig";
     let queueConfig = "";
 
-    if(DEBUG) console.log(`==> Admin request for ${path}`);
-    if(DEBUG) console.log("==> Pass:", globalConfig.adminPassword);
+    if(DEBUG) console.log(`=> Admin request for ${path}`);
+    // if(DEBUG) console.log("==> Pass:", globalConfig.adminPassword);
 
     const reqUrl = new URL(req.url);
     
@@ -31,12 +31,12 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 
     if(reqUrl.searchParams.has("queue")) {
         let queue = reqUrl.searchParams.get("queue");
-        if(DEBUG) console.log(`=> Configure queue ${queue}`);
+        if(DEBUG) console.log(`==> Configure queue [${queue}]`);
     
         // Get the queue configuration
         queueConfig = await fetchQueueConfig(globalConfig, queue);
         if(!queueConfig) {
-            if(DEBUG) console.log(`==> Admin: No queue found for ${queue}`);
+            if(DEBUG) console.log(`==> Admin: No queue found for [${queue}]`);
             return new Response("No queue found", {
                 status: 404,
             });    
@@ -62,12 +62,13 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
         // Parse proper config and save it
         let redirectPath = "";
         if(configName === "globalConfig") {
+            if(DEBUG) console.log(`==> Updating global configuration : `, newConfig);
             updateConfig("globalConfig", globalConfig, newConfig);
             globalConfig = await fetchGlobalConfig();
             redirectPath = globalConfig.adminPath;
         } else {
-            console.log(`config update for ${configName} : `, newConfig);
-            updateConfig(configName, queueConfig, newConfig);
+            if(DEBUG) console.log(`==> Updating configuration for queue [${configName}] : `, newConfig);
+            updateConfig(configName, queueConfig.queue, newConfig);
             queueConfig = await fetchQueueConfig(globalConfig, configName);
             redirectPath = `${globalConfig.adminPath}?queue=${queueConfig.queue.queueName}`;
         }
@@ -132,7 +133,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                         <tr> <td><label for="expires">Expiration Date/Time for this queue (GMT)</label></td>
                         <td><input type="datetime-local" name="expires" value="${queueConfig.queue.expires}"></td>
                         <tr><td><label for="geoCodes">Country codes (3 letter) this queue applies to (blank for all)</label></td>
-                        <td><input type="text" name="geoCodes" ${queueConfig.queue.geoCodes}></td>
+                        <td><input type="text" name="geocodes" value="${queueConfig.queue.geocodes}"></td>
                         <tr> <td><label for="refreshInterval">Queue page refresh interval (secs)</label></td>
                         <td><input type="number" min=0 max=86400 name="refreshInterval" value="${queueConfig.queue.refreshInterval}"></td>
                         <tr> <td><label for="cookieName">Default cookie name (beware collisions!)</label></td>
@@ -238,6 +239,10 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 }
 
 function updateConfig(configName, config, newConfig) {
+    if(DEBUG) {
+        console.log(`==> Writing new configuration for ${configName}`);
+        console.log(`==> ORG: `, JSON.stringify(config));
+    }
     // Copy the config elements, and write it.
     for( conf in newConfig )
         config[conf] = newConfig[conf];
@@ -247,5 +252,7 @@ function updateConfig(configName, config, newConfig) {
     if(!newConfig.active) config.active = false;
 
     // Now write the object back out the the KV store, and re-read it back into memory
+    if(DEBUG) console.log(`==> NEW: `, JSON.stringify(config));
+    
     writeConfig(configName, JSON.stringify(config));
 }
