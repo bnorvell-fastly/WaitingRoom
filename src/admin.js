@@ -239,10 +239,6 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 }
 
 function updateConfig(configName, config, newConfig) {
-    if(DEBUG) {
-        console.log(`==> Writing new configuration for ${configName}`);
-        console.log(`==> ORG: `, JSON.stringify(config));
-    }
     // Copy the config elements, and write it.
     for( conf in newConfig )
         config[conf] = newConfig[conf];
@@ -251,8 +247,5 @@ function updateConfig(configName, config, newConfig) {
     if(!newConfig.forceDebug) config.forceDebug = false;
     if(!newConfig.active) config.active = false;
 
-    // Now write the object back out the the KV store, and re-read it back into memory
-    if(DEBUG) console.log(`==> NEW: `, JSON.stringify(config));
-    
     writeConfig(configName, JSON.stringify(config));
 }

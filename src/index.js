@@ -100,7 +100,7 @@ async function handleRequest(event) {
     if (queueConfig.queue.geocodes && !queueConfig.queue.geocodes.includes(client.geo.country_code3)) {
         // We are not in the listed countries for queueing, so process the request
         if(DEBUG) 
-            console.log(`=> Country exception applied: ${queueConfig.queue.geocodes} configured for queueing, client in ${clientGeo.country_code3}`);
+            console.log(`=> Country exception applied: ${queueConfig.queue.geocodes} configured for queueing, client in ${client.geo.country_code3}`);
         return await handleAuthorizedRequest(request);
     }
 
