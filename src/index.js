@@ -88,6 +88,13 @@ async function handleRequest(event) {
         if(DEBUG) console.log(`==> Queue [${queueName}] is not active`);
         return await handleAuthorizedRequest(request);
     }
+
+    // Allow requests when the queue has expired. Separate logic for this in case we need to add
+    // additional processing in the future 
+    if (queueConfig.queue.expires && Date.now() > new Date(queueConfig.queue.expires)) {
+        if(DEBUG) console.log(`==> Queue [${queueName}] expired at ${new Date(queueConfig.queue.expires)}`);
+        return await handleAuthorizedRequest(request);        
+    }
     
     // If we are queueing by country, check membership
     if (queueConfig.queue.geocodes && !queueConfig.queue.geocodes.includes(client.geo.country_code3)) {
@@ -256,7 +263,17 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
 
     // Calculate time remaining in queue
     // - people ahead of you / (# of users per second we allow) = seconds remaining
-    let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic).toFixed(0);
+    let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic);
+    let expireTime = (Date.parse(config.queue.expires) - Date.now()+queueTime) / 1000;
+    console.log(`=> ${Date.parse(config.queue.expires)}`);
+    console.log(`=> ${Date.now()+queueTime}`);
+    console.log(`=> queueTime [${queueTime}] / expireTime [${expireTime}]`);
+    
+    if(expireTime < queueTime) {
+        // Queue expires before the calculated end of the queue. Use that time instead.
+        queueTime = expireTime;
+        console.log(`=> QueueTime : ${queueTime}`);
+    }
     let queueDate = new Date(queueTime*1000);
     let queueString = "";
     
