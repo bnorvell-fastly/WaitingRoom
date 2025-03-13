@@ -11,17 +11,8 @@ const alg = "RS256";
 // Probably move this into the config as well at some point
 const CONTENT_BACKEND = "protected_content";
 
-// An array of paths that will be served from the origin regardless of the visitor's queue state.
-// Add paths to be protected to the queue config as well, perhaps in the global object, linking path to queue
-// TODO : Make this whitelist a config store object, for paths or objects that are NEVER to be placed into a 
-//        waiting room
-const QUEUE_WHITELIST = [
-    "/assets/background.jpg",
-    "/assets/logo.svg",
-];
-
 // The name of the log endpoint receiving request logs.
-// Move to global config object, or make a per-queue configuration
+// Move to global config object, and make a per-queue configuration
 const LOG_ENDPOINT = "queue_logs";
 
 import { fetchGlobalConfig, fetchQueueConfig } from "./config.js";
@@ -31,7 +22,6 @@ import log from "./logging.js";
 
 // Todo - use DynamicBackends for the origin connections to both content and redis.
 import { allowDynamicBackends } from "fastly:experimental";
-import { getGeolocationForIpAddress } from "fastly:geolocation";
 
 var timer = 0;
 export var DEBUG = 0;
@@ -87,15 +77,12 @@ async function handleRequest(event) {
   
     // Found a queue configuration, load and process
     let queueConfig = await fetchQueueConfig(globalConfig, queueName);
-    if(!queueConfig)
+    if(!queueConfig) // Error handling, this should never occur in normal operations
         return await handleAuthorizedRequest(request);
   
      // Configure the Redis interface.
     redis = Store.getStore(queueConfig);
 
-    // Handle requests to admin endpoints.
-    // if (.admin.path && url.pathname.startsWith(config.admin.path) || url.pathname === "/QueueAdmin")
-    
     // Allow requests to assets that are not protected by a queue, or the queue is disabled.
     if (!queueConfig.queue.active) {
         if(DEBUG) console.log(`==> Queue [${queueName}] is not active`);
@@ -147,7 +134,7 @@ async function handleRequest(event) {
 
     // Initialise properties used to construct a response.
     let newToken = true;        // new JWT Token
-    let visitorPosition = null; // Position in Quque
+    let visitorPosition = null; // Position in Queue
     let reqsThisPeriod = null;  // # of new queue requests this period
     let tokenUUID = null;
 
@@ -169,10 +156,10 @@ async function handleRequest(event) {
     }
 
     if(newToken) {
+        
         if(!tokenUUID){
+            // New visitor, add them to the queue
             tokenUUID = uuidv7();
-            
-            // Add a new visitor to the end of the queue.
             visitorPosition = await Store.incrementQueueLength(redis, queueConfig, tokenUUID);
         }
         
@@ -180,20 +167,19 @@ async function handleRequest(event) {
         timer = performance.now();        
         try {
             newToken = await new jose.SignJWT(
-                    { 'position': visitorPosition, 'expiry':new Date(Date.now() + queueConfig.queue.cookieExpiry * 1000), 'UUID':tokenUUID }
+                    { 'position': visitorPosition, 'expiry':new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000)), 'UUID':tokenUUID }
                 )
                 .setProtectedHeader( {alg} )
                 .setIssuedAt()
                 .setIssuer('urn:example:issuer')
                 .setAudience('urn:example:audience')
-                .setExpirationTime(new Date(Date.now() + queueConfig.queue.cookieExpiry * 1000))
+                .setExpirationTime(new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000)))
                 .setSubject(queueConfig.queue.queueName)
                 .sign(queueConfig.privateKey)
         } catch(e) {
             console.log(`=> Signing Error: ${e}\n==> Token was NOT created`);
         }      
-        
-        
+
         if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer} ms`);
     }
 
@@ -220,7 +206,9 @@ async function handleRequest(event) {
             if(DEBUG) console.log(`=> Allowing the next ${queueConfig.queue.automaticQuantity} queue memebers`);
             
             queueCursor = await Store.incrementQueueCursor( redis, queueConfig, queueConfig.queue.automaticQuantity );
-            if (visitorPosition < queueCursor) permitted = true;
+
+            // This might have allowed the user through the queue, check and see
+            permitted = (queueCursor >= visitorPosition);
         }
     }
 
@@ -326,6 +314,7 @@ export function processView(template, props) {
 }
 
 // Not using this anymore, left for future consideration
+/*
 function removeFileFromUrl(url) {
     try {
       const urlObject = new URL(url); // Use the URL constructor
@@ -339,3 +328,4 @@ function removeFileFromUrl(url) {
       return null;
     }
   }
+*/
