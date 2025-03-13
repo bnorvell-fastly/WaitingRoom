@@ -35,15 +35,22 @@ export async function incrementQueueCursor(store, config, amt) {
     return await store.incrby(`${config.queue.queueName}:cursor`, amt);
 }
 
-// Get the current length of the queue. Subtracting the cursor from this
-// shows how many visitors are waiting.
+// Get the current length of the queue. This may not match the number of users waiting
+// Since we may have abandoned tokens
 export async function getQueueLength(store, config) {
     config.rediscount++;
     return parseInt(await store.get(`${config.queue.queueName}:length`));
 }
 
+// Update the TTL on a visitor record. This allows for a low cookie timer to be set, allowing genuine
+// users to keep thier place in line, while purging positions assigned to bots, or other processes that
+// are not storing the cookie issued to them.
+export async function updateVisitorTTL(store, config, UUID) {
+    config.rediscount++;
+    return await store.pexpire(`${config.queue.queueName}:QP:${UUID}`, config.queue.cookieExpiry*1000);
+}
+
 // Add a visitor to the queue.
-//
 // Returns the new queue length.
 export async function incrementQueueLength(store, config, UUID) {
     config.rediscount+= 2;
@@ -52,7 +59,7 @@ export async function incrementQueueLength(store, config, UUID) {
     // Insert a UUID record with this position, reserving it for that user. This allows us
     // to validate a queue position if necessary. Only set this key if it does not already exist.
     // Reservations persist as long as the cookie lives, set the TTL in milliseconds, accordingly.
-    await store.set(`${config.queue.queueName}:${UUID}`, queuePosition, { px: config.queue.cookieExpiry*1000, nx:true });
+    await store.set(`${config.queue.queueName}:QP:${UUID}`, queuePosition, { px: config.queue.cookieExpiry*1000, nx:true });
     
     return queuePosition;
 }
@@ -60,7 +67,7 @@ export async function incrementQueueLength(store, config, UUID) {
 // Validate a UUID position in the queue
 export async function checkQueuePosition(store, config, UUID) {
     config.rediscount++;
-    return parseInt(await store.get(`${config.queue.queueName}:${UUID}`));
+    return parseInt(await store.get(`${config.queue.queueName}:QP:${UUID}`));
 }
 
 // Increment the request counter for the current period.

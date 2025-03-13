@@ -115,7 +115,6 @@ async function handleRequest(event) {
     let jwt_cookie = getQueueCookie(request, queueConfig.queue.cookieName);
 
     let isValid = 0;
-
     if(jwt_cookie) {
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
@@ -142,25 +141,42 @@ async function handleRequest(event) {
                 (UUIDPosition === payload.position) &&
                 new Date(payload.expiry) > Date.now();
         }        
+
         if (DEBUG) console.log(`=> Token : isvalid:${isValid} payload:`,payload);
     }
 
     // Initialise properties used to construct a response.
-    let newToken = null;        // new JWT Token
+    let newToken = true;        // new JWT Token
     let visitorPosition = null; // Position in Quque
     let reqsThisPeriod = null;  // # of new queue requests this period
+    let tokenUUID = null;
 
-    if (payload && isValid) {
+    if (isValid) {
         visitorPosition = payload.position;
-    } else {
-        // Generate a UUID to associate with this queue position
-        let tokenUUID = uuidv7();
-        
-        // Add a new visitor to the end of the queue.
-        visitorPosition = await Store.incrementQueueLength(redis, queueConfig, tokenUUID);
+        tokenUUID = payload.UUID;
+        newToken = false;
 
+        // If cookie expiry is within the next refresh interval, then automatically issue a new cookie,
+        // so they don't lose their place in line.
+        if(new Date(payload.expiry) - Date.now() <= (queueConfig.queue.refreshInterval*1000)) {
+            if(DEBUG) console.log(`==> Token valid, but expiring, reissuing`);
+            newToken = true;
+
+            // Update TTL on existing db record for this UUID
+            if(!await Store.updateVisitorTTL(redis, queueConfig, tokenUUID)) 
+                console.log("==> Unable to update visitor TTL");                
+        }
+    }
+
+    if(newToken) {
+        if(!tokenUUID){
+            tokenUUID = uuidv7();
+            
+            // Add a new visitor to the end of the queue.
+            visitorPosition = await Store.incrementQueueLength(redis, queueConfig, tokenUUID);
+        }
+        
         // Sign a JWT with the visitor's position.
-        // TODO : Set the expiration of the cookie more intelligently (look at queue expiration, etc)
         timer = performance.now();        
         try {
             newToken = await new jose.SignJWT(
@@ -176,6 +192,8 @@ async function handleRequest(event) {
         } catch(e) {
             console.log(`=> Signing Error: ${e}\n==> Token was NOT created`);
         }      
+        
+        
         if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer} ms`);
     }
 
