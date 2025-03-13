@@ -3,6 +3,7 @@ import { env } from "fastly:env";
 
 /// Crypto stuff
 import { v7 as uuidv7, validate } from 'uuid';
+
 import * as jose from "jose";
 const alg = "RS256";
 
@@ -76,10 +77,15 @@ async function handleRequest(event) {
     if(DEBUG) console.log(`:: QueuePath: ${queuePath}`);
     globalConfig.queues.forEach(queue => {
         let pathRegex = new RegExp(queue[0]);
-        if(DEBUG) console.log(`::- Checking queue ${queue[1]} with path [${queue[0]}]`)
+        if(DEBUG) console.log(`::- Checking queue [${queue[1]}] with path [${queue[0]}]`)
         if(pathRegex.test(queuePath)) queueName = queue[1];
     });
     
+    // No queue config matching this path at all
+    if(!queueName)
+        return await handleAuthorizedRequest(request);
+  
+    // Found a queue configuration, load and process
     let queueConfig = await fetchQueueConfig(globalConfig, queueName);
     if(!queueConfig)
         return await handleAuthorizedRequest(request);
@@ -92,7 +98,7 @@ async function handleRequest(event) {
     
     // Allow requests to assets that are not protected by a queue, or the queue is disabled.
     if (!queueConfig.queue.active) {
-        if(DEBUG) console.log("==> Queue is not active", queueConfig.queue.active);
+        if(DEBUG) console.log(`==> Queue [${queueName}] is not active`);
         return await handleAuthorizedRequest(request);
     }
     
@@ -109,6 +115,7 @@ async function handleRequest(event) {
     let jwt_cookie = getQueueCookie(request, queueConfig.queue.cookieName);
 
     let isValid = 0;
+
     if(jwt_cookie) {
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
@@ -122,7 +129,7 @@ async function handleRequest(event) {
             // Log error here if desired. A failed token could be one that's expired, or someone trying to do 
             // something interesting with the cookie to subvert the queue.
             if(DEBUG) 
-                console.error(`=> Expired or Invalid token (${queueConfig.queue.queueName}), new token will be issued.\n=> Error: ${e}`);
+                console.error(`=> Expired or Invalid token (${queueConfig.queue.queueName}), new token will be issued.\n==> Error: ${e}`);
         }
             
         // We have a properly signed cookie, let check the internals      
@@ -134,7 +141,6 @@ async function handleRequest(event) {
                 validate(payload.UUID) &&
                 (UUIDPosition === payload.position) &&
                 new Date(payload.expiry) > Date.now();
-
         }        
         if (DEBUG) console.log(`=> Token : isvalid:${isValid} payload:`,payload);
     }
@@ -168,10 +174,9 @@ async function handleRequest(event) {
                 .setSubject(queueConfig.queue.queueName)
                 .sign(queueConfig.privateKey)
         } catch(e) {
-            console.log("Signing Error: ",e,"\nToken not created");
+            console.log(`=> Signing Error: ${e}\n==> Token was NOT created`);
         }      
-        if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer}ms`);
-
+        if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer} ms`);
     }
 
     // Fetch the current queue cursor
@@ -189,43 +194,32 @@ async function handleRequest(event) {
         // will always start at 0
         reqsThisPeriod = await Store.incrementAutoPeriod(redis, queueConfig);
 
-        // if(DEBUG) console.log(`S: ${reqsThisPeriod} Q: ${queueConfig.automatic} A:${queueConfig.automaticQuantity}`);
-     
         // If we've not yet allowed the configured # of people through the queue this period, then check placement in line,
         // and let them through if they qualify
-        // The 1st request during the new period will automatically bump the cursor, since the 1st request will always set
+        // The 1st request during the new period will automatically bump the auto record, since the 1st request will always set
         // reqsThisPeriod to 1.
         if (reqsThisPeriod === 1) {
             if(DEBUG) console.log(`=> Allowing the next ${queueConfig.queue.automaticQuantity} queue memebers`);
             
             queueCursor = await Store.incrementQueueCursor( redis, queueConfig, queueConfig.queue.automaticQuantity );
-
-            if (visitorPosition < queueCursor) {
-                permitted = true;
-            }
+            if (visitorPosition < queueCursor) permitted = true;
         }
     }
 
-    if (!permitted) {
-        var response = await handleUnauthorizedRequest(
-            request,
-            queueConfig,
-            visitorPosition - queueCursor
-        );
-    } else {
+    if (!permitted) 
+        var response = await handleUnauthorizedRequest( request, queueConfig, visitorPosition - queueCursor);
+    else
         var response = await handleAuthorizedRequest(request);
-    }
-
+    
     // Set a cookie on the response if needed and return it to the client.
     // There can be multiple set-cookie headers, use append, and not get so that any other
     // set-cookies don't get overwritten.
-    if (newToken) {
+    if (newToken)
         response.headers.append(
             "Set-Cookie",
             `${queueConfig.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${queueConfig.queue.cookieExpiry}; SameSite=None`
         );
-    }
-
+    
     // Log the request and response.
     log(
         LOG_ENDPOINT,
@@ -239,18 +233,15 @@ async function handleRequest(event) {
         }
     );
     
+    // Log the # of redis operations to the console, this can be used for billing estimates
     if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations.`);
-    if(DEBUG) console.log(`=> Backend status: ${response.status}`);
     return response;
 }
 
 // Handle an incoming request that has been authorized to access protected content.
 async function handleAuthorizedRequest(req) {
     if(DEBUG) console.log(`=> Auth'd req to ${req.url}`);
-    return await fetch(req,{
-        backend: CONTENT_BACKEND
-    });
-
+    return await fetch(req,{ backend: CONTENT_BACKEND });
 }
 
 // Handle an incoming request that is not yet authorized to access protected content.
@@ -264,7 +255,6 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     let queueString = "";
     
     // Make a string for the queue time remaining.
-    
     if( queueTime > 86400)
          queueString = "unknown";
     else if(queueTime > 3600)
@@ -317,6 +307,7 @@ export function processView(template, props) {
     return template;
 }
 
+// Not using this anymore, left for future consideration
 function removeFileFromUrl(url) {
     try {
       const urlObject = new URL(url); // Use the URL constructor

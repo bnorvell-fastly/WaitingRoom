@@ -132,8 +132,6 @@ export async function fetchQueueConfig(globalConfig, queueName) {
         return "";
     }
     
-    if(DEBUG) console.log(`==> Loading config data for queue [${queueName}]`);
-
     // Get global queue config, then get request path config, if path not found, return empty so no processing occurs
     let queueConfig = await get_kv_entry(kv_store, queueName,1);
     if(!queueConfig) {
@@ -173,7 +171,7 @@ export async function fetchQueueConfig(globalConfig, queueName) {
     let redisUrl = queueConfig.redisUrl;
     let redisToken = await get_secret_entry(secret_store, queueConfig.redisToken, 1);
 
-    // Return all the config data as a single JSON object in memory
+    // Return all the queue config data as a single JSON object in memory
     return {
         queue: queueConfig,
         publicKey: publicKey,

@@ -13,9 +13,6 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     let configName = "globalConfig";
     let queueConfig = "";
 
-    if(DEBUG) console.log(`=> Admin request for ${path}`);
-    // if(DEBUG) console.log("==> Pass:", globalConfig.adminPassword);
-
     const reqUrl = new URL(req.url);
     
     // This is not secure, replace it with something far more robust
@@ -31,7 +28,6 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 
     if(reqUrl.searchParams.has("queue")) {
         let queue = reqUrl.searchParams.get("queue");
-        if(DEBUG) console.log(`==> Configure queue [${queue}]`);
     
         // Get the queue configuration
         queueConfig = await fetchQueueConfig(globalConfig, queue);
@@ -44,7 +40,9 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
         }
         configName = queueConfig.queue.queueName;
     }
-    
+
+    if(DEBUG) console.log(`==> Admin: Configure request for [${configName}]`);
+
     // If we're posting new data, then update the record accordingly, and write it back to the KV store
     if(req.method === "POST") {
         const reqBody = new String(await req.text());
@@ -61,13 +59,12 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
 
         // Parse proper config and save it
         let redirectPath = "";
+        if(DEBUG) console.log(`==> Updating configuration for queue [${configName}]`);
         if(configName === "globalConfig") {
-            if(DEBUG) console.log(`==> Updating global configuration : `, newConfig);
             updateConfig("globalConfig", globalConfig, newConfig);
             globalConfig = await fetchGlobalConfig();
             redirectPath = globalConfig.adminPath;
         } else {
-            if(DEBUG) console.log(`==> Updating configuration for queue [${configName}] : `, newConfig);
             updateConfig(configName, queueConfig.queue, newConfig);
             queueConfig = await fetchQueueConfig(globalConfig, configName);
             redirectPath = `${globalConfig.adminPath}?queue=${queueConfig.queue.queueName}`;
