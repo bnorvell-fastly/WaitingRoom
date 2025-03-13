@@ -265,15 +265,10 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     // - people ahead of you / (# of users per second we allow) = seconds remaining
     let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic);
     let expireTime = (Date.parse(config.queue.expires) - Date.now()+queueTime) / 1000;
-    console.log(`=> ${Date.parse(config.queue.expires)}`);
-    console.log(`=> ${Date.now()+queueTime}`);
-    console.log(`=> queueTime [${queueTime}] / expireTime [${expireTime}]`);
+
+    // Queue expires before the calculated end of the queue. Use that time instead.
+    if(expireTime < queueTime) queueTime = expireTime;
     
-    if(expireTime < queueTime) {
-        // Queue expires before the calculated end of the queue. Use that time instead.
-        queueTime = expireTime;
-        console.log(`=> QueueTime : ${queueTime}`);
-    }
     let queueDate = new Date(queueTime*1000);
     let queueString = "";
     
