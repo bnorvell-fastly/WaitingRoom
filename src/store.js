@@ -1,12 +1,24 @@
 import { Redis } from "@upstash/redis/fastly";
 1//import Redis from "redis"; // - This does not work due to node.js dependencies that Fastly does not support
 
-// Typical usage (billing implications) :
-// Each compute request will consume 1 connection to Redis. 
-// 6 operations for a new queue member
-// 3 operations for a queued member in queue
-// 2 operations for an allowed queued member (or any allowed member that checks the config (enabled:true in the queue config))
-// config.rediscount will always contain a count of the redis operations performed for any given request. 
+// Redis key schema :
+//
+// General notes - every key except the cursor and length have TTL's set via queue/global configurations.
+// Atomic operations are used wherever possible, so that this can maintain global state in high load conditions.
+// The rediscount variable in the config object is incremented for all operations, to allow for estimating billing costs
+//
+// <queueName>:cursor
+//  Current cursor into the queue. This is the current position of visitors let in. Atomic increment when we let users in
+//  either automatically (via timer), or manually
+// <queueName>:length
+//  Overall length of the queue. Atomic increment when a new user is added
+// <queueName>:auto
+//  # of users who have arrive during this <interval> of time. TTL of queueRefreshInterval, so it will be reissued
+//  each interval. This is used for the timer to allow users through the queue
+// <queueName>:QP:<uuid>
+//  queue position of each user in the queue. TTL set so that keys expire if not used regularly, this is to prevent bots from getting
+//  (and keeping) a place in line, if they aren't storing or allowing re-writes to cookies.
+//
 
 // Helper function for configuring a Redis client.
 export function getStore(config) {
@@ -77,10 +89,11 @@ export async function incrementAutoPeriod(store, config) {
     // let period_timestamp = Math.ceil(new Date().getTime() / (config.queue.automatic * 1000));
 
     // Increment the auto-authorize count. This has a TTL set, so that the record will
-    // expire at the confugured period time, and the 1st subsequest request will trigger
+    // expire at the configured period time, and the 1st subsequest request will trigger
     // the queue allow logic in the main function while also creating the new period record.
     let new_period = await store.incr(`${config.queue.queueName}:auto`);
     config.rediscount++;
+    
     if(new_period === 1) { // This is a new period key, set  the timeout in seconds
         await store.expire(`${config.queue.queueName}:auto`, config.queue.automatic);
         config.rediscount++;
