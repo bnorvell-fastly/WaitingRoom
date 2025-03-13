@@ -179,6 +179,7 @@ export async function fetchQueueConfig(globalConfig, queueName) {
         redisUrl: redisUrl,
         redisToken: redisToken,
         rediscount: 0,
+        redistime: 0,
         admin: {
             // the path for serving the admin interface and API
             //
