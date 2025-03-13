@@ -111,7 +111,7 @@ async function handleRequest(event) {
     let isValid = 0;
     if(jwt_cookie) {
         
-        timer = performance.now();
+        if(DEBUG) timer = performance.now();
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
             var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
@@ -174,7 +174,7 @@ async function handleRequest(event) {
         }
         
         // Sign a JWT with the visitor's position.
-        timer = performance.now();        
+        if(DEBUG) timer = performance.now();        
         try {
             newToken = await new jose.SignJWT(
                     { 'position': visitorPosition, 'expiry':new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000)), 'UUID':tokenUUID }
@@ -250,7 +250,7 @@ async function handleRequest(event) {
     );
     
     // Log the # of redis operations to the console, this can be used for billing estimates
-    if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations.`);
+    if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations in ${queueConfig.redistimer} ms.`);
     return response;
 }
 
