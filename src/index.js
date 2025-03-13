@@ -110,6 +110,8 @@ async function handleRequest(event) {
 
     let isValid = 0;
     if(jwt_cookie) {
+        
+        timer = performance.now();
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
             var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
@@ -124,7 +126,8 @@ async function handleRequest(event) {
             if(DEBUG) 
                 console.error(`=> Expired or Invalid token (${queueConfig.queue.queueName}), new token will be issued.\n==> Error: ${e}`);
         }
-            
+        if(DEBUG) console.log(`=> Validated an ${alg} token, took ${performance.now()-timer} ms`);    
+        
         // We have a properly signed cookie, let check the internals      
         if(payload) {
             var UUIDPosition = await Store.checkQueuePosition(redis, queueConfig, payload.UUID);
