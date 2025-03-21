@@ -1,5 +1,6 @@
 import { Logger } from "fastly:logger";
 import { env } from "fastly:env";
+import { DEBUG } from './index.js'; // In case we switch to using a global log function to log debug and operational logs
 
 export default function log(
   endpointName,
@@ -9,7 +10,6 @@ export default function log(
   responseStatus,
   queueData
 ) {
-  return;
   
   const endpoint = new Logger(endpointName);
   endpoint.log(
@@ -20,11 +20,11 @@ export default function log(
       requestMethod: req.method,
       requestReferer: req.headers.get("Referer"),
       requestUserAgent: req.headers.get("User-Agent"),
-      fastlyRegion: env.get("FASTLY_REGION"),
-      fastlyServiceId: env.get("FASTLY_SERVICE_ID"),
-      fastlyServiceVersion: env.get("FASTLY_SERVICE_VERSION"),
-      fastlyHostname: env.get("FASTLY_HOSTNAME"),
-      fastlyTraceId: env.get("FASTLY_TRACE_ID"),
+      fastlyRegion: env("FASTLY_REGION"),
+      fastlyServiceId: env("FASTLY_SERVICE_ID"),
+      fastlyServiceVersion: env("FASTLY_SERVICE_VERSION"),
+      fastlyHostname: env("FASTLY_HOSTNAME"),
+      fastlyTraceId: env("FASTLY_TRACE_ID"),
       ...tryGeo(client),
       responseStatus,
       permitted,
@@ -38,7 +38,7 @@ export default function log(
 function tryGeo(client) {
   try {
     return {
-      clientGeoCountry: client.geo.country_code,
+      clientGeoCountry: client.geo.country_code3,
       clientGeoCity: client.geo.city,
     };
   } catch (e) {
