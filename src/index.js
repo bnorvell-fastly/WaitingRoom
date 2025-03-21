@@ -13,7 +13,7 @@ const CONTENT_BACKEND = "protected_content";
 
 // The name of the log endpoint receiving request logs.
 // Move to global config object, and make a per-queue configuration
-const LOG_ENDPOINT = "queue_logs";
+const LOG_ENDPOINT = "sumo_logging";
 
 import { fetchGlobalConfig, fetchQueueConfig } from "./config.js";
 import { handleAdminRequest } from "./admin.js";
@@ -33,7 +33,6 @@ async function handleRequest(event) {
     let VERSION = env("FASTLY_SERVICE_VERSION");
     let HOST = env("FASTLY_HOSTNAME");
     let redis = "";
-
 
     const { request, client } = event;
     
@@ -172,18 +171,19 @@ async function handleRequest(event) {
             tokenUUID = uuidv7();
             visitorPosition = await Store.incrementQueueLength(redis, queueConfig, tokenUUID);
         }
-        
+
+        // TODO - if the cookie expires after the queue does, set the expiry to 1s after the queue expires
         // Sign a JWT with the visitor's position.
+        tokenExpiration = new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000));
+
         if(DEBUG) timer = performance.now();        
         try {
-            newToken = await new jose.SignJWT(
-                    { 'position': visitorPosition, 'expiry':new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000)), 'UUID':tokenUUID }
-                )
-                .setProtectedHeader( {alg} )
+            newToken = await new jose.SignJWT({ 'position': visitorPosition, 'expiry':tokenExpiration, 'UUID':tokenUUID })
+                .setProtectedHeader( { alg:queueConfig.privateKey.alg })
                 .setIssuedAt()
                 .setIssuer('urn:example:issuer')
                 .setAudience('urn:example:audience')
-                .setExpirationTime(new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000)))
+                .setExpirationTime(tokenExpiration)
                 .setSubject(queueConfig.queue.queueName)
                 .sign(queueConfig.privateKey)
         } catch(e) {
