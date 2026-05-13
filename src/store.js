@@ -98,10 +98,7 @@ export async function incrementQueueLength(store, config, UUID) {
 export async function checkQueuePosition(store, config, UUID) {
     config.rediscount++;
     let timer = performance.now();
-    const tx = store.multi();
-    tx.get(`${config.queue.queueName}:QP:${UUID}`);
-    // let res = parseInt(await store.get(`${config.queue.queueName}:QP:${UUID}`), 10);
-    let res = parseInt((await tx.exec())[0], 10);
+    let res = parseInt(await store.get(`${config.queue.queueName}:QP:${UUID}`), 10);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
 }
