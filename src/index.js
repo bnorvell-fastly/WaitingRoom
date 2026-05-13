@@ -114,11 +114,11 @@ async function handleRequest(event) {
         if(DEBUG) timer = performance.now();
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
-            payload = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
+            ({ payload } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
                 issuer: `${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`,
                 audience: url.hostname,
                 subject: queueConfig.queue.queueName,
-            })
+            }))
             
         } catch (e) {
             // Log error here if desired. A failed token could be one that's expired, or someone trying to do 
@@ -128,17 +128,18 @@ async function handleRequest(event) {
         }
         if(DEBUG) {
             timer = performance.now()-timer;
-            console.log(`=> Validated an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);    
+            console.log(`=> Validated an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);
+            console.log(`==> PAYLOAD: ${payload.UUID}, ${payload.position}, ${payload.exp}`); 
         }
         
         // We have a properly signed cookie, lets check the internals      
         if(payload) {
             isValid =
-                payload &&
+                // Valid UUID ?
                 validate(payload.UUID) &&
                 // (UUIDPosition === payload.position) &&
                 (await Store.checkQueuePosition(redis, queueConfig, payload.UUID) == payload.position) &&
-                 payload.exp > Date.now();
+                 payload.exp > Math.floor(Date.now() / 1000);
         }        
 
         if (DEBUG) console.log(`=> Token : isvalid:${isValid} payload:`,payload);
@@ -323,7 +324,7 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
             headers: {
                 "Content-Type": "text/html",
                 "Refresh": config.queue.refreshInterval,
-                "Content-Security-Policy": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; image-src 'self' https://upload.wikimedia.org;",
+                "Content-Security-Policy": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; image-src 'self' https://upload.wikimedia.org;",
                 "X-Frame-Options": "DENY",
                 "X-Content-Type-Options": "nosniff",
                 "Strict-Transport-Security": "max-age=31536000; includeSubDomains",

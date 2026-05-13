@@ -1,1 +1,292 @@
-queue-volaris.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Virtual Queue — Fastly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand:       #FF282D;
+      --brand-alpha: rgba(255, 40, 45, 0.18);
+      --bg:          #080808;
+      --card:        #111111;
+      --inset:       #181818;
+      --border:      rgba(255, 255, 255, 0.07);
+      --text:        #ffffff;
+      --muted:       #888888;
+      --dim:         #444444;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.25rem;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Logo ─────────────────────────────────────── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo-badge {
+      width: 34px;
+      height: 34px;
+      background: var(--brand);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.0625rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-name {
+      font-size: 1.375rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+
+    /* ── Card ─────────────────────────────────────── */
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 40px 100px rgba(0, 0, 0, 0.5),
+        0 0 80px rgba(255, 40, 45, 0.04);
+    }
+
+    /* ── Pulse indicator ──────────────────────────── */
+    .indicator {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 2rem;
+    }
+
+    .ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1.5px solid var(--brand);
+      opacity: 0;
+      animation: ripple 2.4s ease-out infinite;
+    }
+    .ring:nth-child(2) { animation-delay: 0.8s; }
+    .ring:nth-child(3) { animation-delay: 1.6s; }
+
+    @keyframes ripple {
+      0%   { transform: scale(0.5);  opacity: 0.8; }
+      100% { transform: scale(1.55); opacity: 0;   }
+    }
+
+    .core {
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      background: var(--brand-alpha);
+      border: 2px solid var(--brand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Headings ─────────────────────────────────── */
+    h1 {
+      font-size: 1.375rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+      margin-bottom: 0.625rem;
+    }
+
+    .sub {
+      font-size: 0.9375rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .sub strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── Position block ───────────────────────────── */
+    .position {
+      background: var(--inset);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .position-num {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+      color: var(--brand);
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    .position-lbl {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Wait time row ────────────────────────────── */
+    .wait {
+      background: var(--inset);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .wait-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--dim);
+      white-space: nowrap;
+    }
+
+    .wait-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      text-align: right;
+    }
+
+    /* ── Animated progress bar ────────────────────── */
+    .progress {
+      height: 3px;
+      background: var(--inset);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 1.75rem;
+    }
+
+    .bar {
+      height: 100%;
+      width: 35%;
+      background: var(--brand);
+      border-radius: 99px;
+      animation: slide 2.2s ease-in-out infinite;
+    }
+
+    @keyframes slide {
+      0%   { transform: translateX(-200%); }
+      100% { transform: translateX(450%);  }
+    }
+
+    /* ── Footer note ──────────────────────────────── */
+    .note {
+      font-size: 0.8125rem;
+      color: var(--dim);
+      line-height: 1.65;
+    }
+
+    .page-footer {
+      margin-top: 1.75rem;
+      font-size: 0.6875rem;
+      color: var(--dim);
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Responsive ───────────────────────────────── */
+    @media (max-width: 400px) {
+      .card { padding: 2rem 1.25rem; border-radius: 16px; }
+      h1 { font-size: 1.2rem; }
+      .position-num { font-size: 2.5rem; }
+      .wait { flex-direction: column; text-align: center; }
+      .wait-value { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">
+    <div class="logo-badge">F</div>
+    <span class="logo-name">fastly</span>
+  </div>
+
+  <main class="card">
+
+    <div class="indicator" aria-hidden="true">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="core">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+             stroke="#FF282D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+    </div>
+
+    <h1>You're in the virtual queue</h1>
+    <p class="sub">
+      There {{ visitorsVerb }} <strong>{{ visitorsAhead }} {{ visitorsPlural }}</strong> ahead of you.<br>
+      Your place is saved — just keep this tab open.
+    </p>
+
+    <div class="position">
+      <div class="position-num">{{ visitorsAhead }}</div>
+      <div class="position-lbl">{{ visitorsPlural }} ahead of you</div>
+    </div>
+
+    <div class="wait">
+      <span class="wait-label">Estimated wait time</span>
+      <span class="wait-value">{{ estimatedTime }}</span>
+    </div>
+
+    <div class="progress" aria-hidden="true">
+      <div class="bar"></div>
+    </div>
+
+    <p class="note">
+      This page refreshes automatically — no action needed.<br>
+      You'll be redirected when it's your turn.
+    </p>
+
+  </main>
+
+  <footer class="page-footer">
+    Virtual queue powered by Fastly
+  </footer>
+
+</body>
+</html>
