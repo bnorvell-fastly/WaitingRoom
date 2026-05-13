@@ -21,7 +21,7 @@ export default function log(
       clientAddress: client.address,
       requestUrl: req.url.toString(),
       requestMethod: req.method,
-      requestReferer: req.headers.get("Referer"),
+      requestReferer: (() => { try { return new URL(req.headers.get("Referer") ?? '').origin; } catch { return null; } })(),
       requestUserAgent: req.headers.get("User-Agent"),
       fastlyRegion: env("FASTLY_REGION"),
       fastlyServiceId: env("FASTLY_SERVICE_ID"),
