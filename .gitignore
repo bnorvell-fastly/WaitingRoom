@@ -9,4 +9,5 @@ keyGen.sh
 /src/kv-store
 fastly.toml
 SECURITY_TODO.md
+SECURITY_COMPLETED.md
 SUGGESTIONS.md

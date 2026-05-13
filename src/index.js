@@ -30,10 +30,6 @@ async function handleRequest(event) {
     let HOST = env("FASTLY_HOSTNAME");
     let redis = "";
     DEBUG = 0; // Ensure this remains off unless toggled. In a reusable sandbox this ensures desired behavior.
-
-    const { request, client } = event;
-    
-    console.log(`=> Service Version : ${VERSION} running on ${HOST} from ${client.address} <=`);
   
     // Get the global configuration object
     let globalConfig = await fetchGlobalConfig();
@@ -42,6 +38,9 @@ async function handleRequest(event) {
     // request.headers.has("Fastly-Debug")?DEBUG=1:DEBUG=globalConfig.forceDebug;
     DEBUG = globalConfig.forceDebug;
     
+    const { request, client } = event;
+    if(DEBUG) console.log(`=> Service Version : ${VERSION} running on ${HOST} from ${client.address} <=`);
+
     const url = new URL(request.url);
     let queuePath = url.pathname;
 
@@ -115,7 +114,7 @@ async function handleRequest(event) {
         if(DEBUG) timer = performance.now();
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
-            { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
+            payload = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
                 issuer: `${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`,
                 audience: url.hostname,
                 subject: queueConfig.queue.queueName,
@@ -190,7 +189,7 @@ async function handleRequest(event) {
                 .setIssuedAt()
                 .setIssuer(`${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`)
                 .setAudience(url.hostname)
-                .setExpirationTime(tokenExpiration)
+                .setExpirationTime(`${queueConfig.queue.cookieExpiry}s`)
                 .setSubject(queueConfig.queue.queueName)
                 .sign(queueConfig.privateKey)
         } catch(e) {
@@ -324,7 +323,7 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
             headers: {
                 "Content-Type": "text/html",
                 "Refresh": config.queue.refreshInterval,
-                "Content-Security-Policy": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com",
+                "Content-Security-Policy": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com; image-src 'self' https://upload.wikimedia.org;",
                 "X-Frame-Options": "DENY",
                 "X-Content-Type-Options": "nosniff",
                 "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
