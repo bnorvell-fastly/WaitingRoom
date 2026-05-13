@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis/fastly";
 import { DEBUG } from "./index.js";
 
-1//import Redis from "redis"; // - This does not work due to node.js dependencies that Fastly does not support
+//import Redis from "redis"; // - This does not work due to node.js dependencies that Fastly does not support
 
 // Redis key schema :
 //
@@ -35,8 +35,8 @@ export function getStore(config) {
 // If we don't have a cursor, the answer is 0
 export async function getQueueCursor(store, config) {
     config.rediscount++;
-    if(DEBUG) timer=performance.now();
-    let res = parseInt((await store.get(`${config.queue.queueName}:cursor`)) || 0);
+    let timer = performance.now();
+    let res = parseInt((await store.get(`${config.queue.queueName}:cursor`)) || 0, 10);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
 }
@@ -49,7 +49,7 @@ export async function incrementQueueCursor(store, config, amt) {
     if(amt === 0) return 0;
 
     config.rediscount++;
-    if(DEBUG) timer=performance.now();
+    let timer = performance.now();
     let res = await store.incrby(`${config.queue.queueName}:cursor`, amt);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
@@ -59,8 +59,8 @@ export async function incrementQueueCursor(store, config, amt) {
 // Since we may have abandoned tokens
 export async function getQueueLength(store, config) {
     config.rediscount++;
-    if(DEBUG) timer = performance.now();
-    let res = parseInt(await store.get(`${config.queue.queueName}:length`));
+    let timer = performance.now();
+    let res = parseInt((await store.get(`${config.queue.queueName}:length`)) || 0, 10);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
 }
@@ -70,7 +70,7 @@ export async function getQueueLength(store, config) {
 // are not storing the cookie issued to them.
 export async function updateVisitorTTL(store, config, UUID) {
     config.rediscount++;
-    if(DEBUG) timer = performance.now();
+    let timer = performance.now();
     let res = await store.pexpire(`${config.queue.queueName}:QP:${UUID}`, config.queue.cookieExpiry*1000);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
@@ -80,7 +80,7 @@ export async function updateVisitorTTL(store, config, UUID) {
 // Returns the new queue length.
 export async function incrementQueueLength(store, config, UUID) {
     config.rediscount+= 2;
-    if(DEBUG) timer = performance.now();
+    let timer = performance.now();
     let queuePosition = await store.incr(`${config.queue.queueName}:length`);
     
     // Insert a UUID record with this position, reserving it for that user. This allows us
@@ -93,10 +93,15 @@ export async function incrementQueueLength(store, config, UUID) {
 }
 
 // Validate a UUID position in the queue
+// Use Transactions to ensure this is an atomic operation, since it's the actual queue position
+// Helps prevent timing based replay attacks 
 export async function checkQueuePosition(store, config, UUID) {
     config.rediscount++;
-    if(DEBUG) timer = performance.now();
-    let res = parseInt(await store.get(`${config.queue.queueName}:QP:${UUID}`));
+    let timer = performance.now();
+    const tx = store.multi();
+    tx.get(`${config.queue.queueName}:QP:${UUID}`);
+    // let res = parseInt(await store.get(`${config.queue.queueName}:QP:${UUID}`), 10);
+    let res = parseInt((await tx.exec())[0], 10);
     if(DEBUG) config.redistimer += performance.now()-timer;
     return res;
 }
@@ -110,7 +115,7 @@ export async function incrementAutoPeriod(store, config) {
     // Increment the auto-authorize count. This has a TTL set, so that the record will
     // expire at the configured period time, and the 1st subsequest request will trigger
     // the queue allow logic in the main function while also creating the new period record.
-    if(DEBUG) timer = performance.now();
+    let timer = performance.now();
     let new_period = await store.incr(`${config.queue.queueName}:auto`);
     config.rediscount++;
 

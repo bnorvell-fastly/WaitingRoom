@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fastly Waiting Room</title>
+  <style>
+    /* Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+    @font-face {
+      font-family: 'ES Rebond Grotesque';
+      src: url('ESRebondGrotesque-Regular.woff2') format('woff2'),
+           url('ESRebondGrotesque-Regular.woff') format('woff');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    :root {
+      --fastly-red: #FF2828;
+      --light-bg: #FFFFFF;
+      --dark-text: #111111;
+      --muted-text: #555555;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--light-bg);
+      color: var(--dark-text);
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 20px;
+    }
+    .logo {
+      max-height: 60px;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-family: 'ES Rebond Grotesque', sans-serif;
+      font-size: 2.5rem;
+      color: var(--fastly-red);
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 1rem;
+      color: var(--muted-text);
+      max-width: 480px;
+      line-height: 1.5;
+    }
+    .spinner {
+      margin-top: 40px;
+      width: 60px;
+      height: 60px;
+      border: 6px solid var(--muted-text);
+      border-top: 6px solid var(--fastly-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <img class="logo" src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Fastly_logo.svg" alt="Fastly Logo">
+
+  <h1>Please wait…</h1>
+  <p>You are in a queue. This page will automatically refresh as soon as you can access the service.</p>
+  <p><br></p>
+  <p>There are {{ visitorsAhead }} visitors in line, and your estimated wait time is currently {{ estimatedTime }}.</p>
+
+  <div class="spinner"></div>
+
+</body>
+</html>

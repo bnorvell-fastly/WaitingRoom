@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NVIDIA Waiting Room</title>
+  <style>
+    :root {
+      --nv-green: #76B900;
+      --nv-dark: #1E1E1E;
+      --nv-light: #FFFFFF;
+      --nv-muted: #B0B0B0;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--nv-dark);
+      color: var(--nv-light);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .logo-eyemark {
+      width: 48px;
+      height: 48px;
+    }
+
+    .logo-wordmark {
+      height: 48px;
+    }
+
+    h1 {
+      color: var(--nv-green);
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: var(--nv-muted);
+      max-width: 400px;
+      font-size: 1rem;
+    }
+
+    .spinner {
+      margin-top: 40px;
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--nv-muted);
+      border-top: 5px solid var(--nv-green);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo-container">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/NVIDIA_logo.svg" alt="NVIDIA Wordmark">
+  </div>
+
+  <h1>Please wait…</h1>
+  <p>You’re currently in a queue. This page will automatically refresh when it’s your turn to enter.</p>
+  <p>Your estimated wait time is {{ estimatedTime }}</p>
+
+  <div class="spinner"></div>
+<p></p>
+<p>Site not affiliated with nVidia - for demonstration purposes only.</p>
+</body>
+</html>

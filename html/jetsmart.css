@@ -1,0 +1,198 @@
+body {
+	  margin: 0px !important;
+    background-image: url(//assets.queue-it.net/jetsmart/userdata/v01/bg2.jpg);
+    background-position: 0px 0px;
+    background-size:auto;
+    -webkit-animation: nubesita 6000s steps(1000000) infinite;
+    -moz-animation: nubesita 6000s steps(1000000) infinite;
+    -ms-animation: nubesita 6000s steps(1000000) infinite;
+    -o-animation: nubesita 6000s steps(1000000) infinite;
+    animation: nubesita 6000s steps(1000000) infinite;
+}
+@media (max-width:768px){
+	body{
+		background-size: 200%;
+	}
+}
+
+#toppanel_iframe {
+    width: 100%;
+    height: 370px;
+}
+#bottompanel_iframe{width: 100%; height: 74px;}
+
+.progressbar .progress, .progressbar .progress.updated {
+    background-color: #B6282D;
+    background-image: none ;
+}
+#header {text-align: center;}
+.warning-box {background:transparent !important; padding: 0px !important;}
+.progressbar {
+    background: #fff !important;
+    border: 3px solid #B6282D !important;
+    border-radius: 10px;
+}
+
+#wrapper{
+	background: transparent !important;
+}
+
+#toppanel {
+    background:transparent !important;
+    width: 100%;
+    display: block;
+    padding-bottom: 0px;
+}
+.progressbar .progress .runner {
+    background-image: url(//assets.queue-it.net/jetsmart/userdata/v01/avion3.png) !important;
+    background-repeat: no-repeat;
+    background-size: 100%;
+    width: 34px;
+}
+
+#middlepanel_iframe {
+    height: 394px;
+    width: 100%;
+}
+@media(max-width:420px){
+	#middlepanel_iframe {
+		height: 417px;
+	}
+}
+.by{display:none;}
+.processbar-box .holder {
+    color: #06254F;
+    background: #fff !important;
+    font-weight: 100;
+}
+#main .t, #main .b {
+	display: none;
+    height: 45px;
+    width: 514px;
+    overflow: hidden;
+    background: #123f69 !important;
+    background-position: center;
+}
+#main .c {
+    width: 514px !important;
+    background: #fff;
+    border: 4px solid #123f69;
+    border-radius: 15px;
+}
+#header {
+    padding: 20px !important;
+    background-color: #fff;
+    color: #06254F;
+    font-weight: 100;
+    border: none !important;
+}
+
+.processbar-box {background: none !important;}
+
+#bottompanel{ background-color: #E9E8EE; }
+
+.processbar-box .holder { border-bottom: 1px solid #B6282D !important; }
+
+#header #headertext {
+    margin: 0;
+    font-size: 25px;
+    line-height: 29px;
+    font-weight: 100;
+    text-transform: uppercase;
+}
+.block p {
+    font-weight: 100;
+}
+#lbCookieInfo{
+	display: block;
+	text-align: center;
+}
+#MainPart_divExitLine > p{
+	text-align: center;
+}
+#hlThisIsQueueIt{color: #B6282D;}
+.warning-box{
+	border: none !important;
+	color: #999;
+}
+.warning-box .beforeElement{
+	margin: 0;
+}
+#MainPart_divWarningBox .btn .r, #buttonConfirmRedirect .r{
+	display: none;
+}
+#MainPart_divWarningBox .btn, #buttonConfirmRedirect{
+	border-bottom: 4px solid #B6282D;
+  background: #06254F;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 15px;
+}
+#MainPart_divWarningBox .btn:hover, #buttonConfirmRedirect:hover{
+	border-bottom: 4px solid #06254F;
+  background: #B6282D;
+}
+
+
+@media (max-width: 480px) {
+ 	#main .c {
+    width: 95% !important;
+    border-radius: 6px;
+    display: block;
+    margin: 0 auto;
+	}
+
+    #toppanel_iframe {
+    	height: 368px;
+		}
+    .progressbar {
+    	width: 90%;
+		}
+    #footer .by {display: none;}
+}
+@media (max-width:350px){
+	#toppanel_iframe{
+		 height: 300px;
+	}
+}
+
+@-webkit-keyframes nubesita {
+  from {
+    background-position: 0;
+  }
+  to {
+    background-position: -1600px 0px;
+  }
+}
+@-moz-keyframes nubesita {
+  from {
+    background-position: 0;
+  }
+  to {
+    background-position: -500000px 0;
+  }
+}
+@-ms-keyframes nubesita {
+  from {
+    background-position: 0;
+  }
+  to {
+    background-position: -500000px 0;
+  }
+}
+@-o-keyframes nubesita {
+  from {
+    background-position: 0;
+  }
+  to {
+    background-position: -500000px 0;
+  }
+}
+@keyframes nubesita {
+  from {
+    background-position: 0;
+  }
+  to {
+    background-position: -500000px 100000px;
+  }
+}

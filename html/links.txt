@@ -1,0 +1,5 @@
+https://assets-us-west-2.queue-it.net/jetsmart/userdata/v03/main_9.css
+https:/o/assets.queue-it.net/jetsmart/userdata/v01/bg2.jpg
+https://assets-us-west-2.queue-it.net/jetsmart/userdata/top-22-01-2024.png
+
+Top image should link to https://jetsmart.com/cl/es/offline?banner=on

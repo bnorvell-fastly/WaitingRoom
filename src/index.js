@@ -1,14 +1,13 @@
 /// <reference types="@fastly/js-compute" />
 import { env } from "fastly:env";
+import { allowDynamicBackends } from "fastly:experimental"; // Future use
 
 /// Crypto stuff
 import { v7 as uuidv7, validate } from 'uuid';
-
 import * as jose from "jose";
-const alg = "RS256";
 
 // The name of the backend serving the content that is being protected by the queue.
-// Probably move this into the config as well at some point
+// Deprecate this once dynamic backends have been implemented
 const CONTENT_BACKEND = "protected_content";
 
 // The name of the log endpoint receiving request logs.
@@ -20,9 +19,6 @@ import { handleAdminRequest } from "./admin.js";
 import * as Store from "./store.js";
 import log from "./logging.js";
 
-// Todo - use DynamicBackends for the origin connections to both content and redis.
-import { allowDynamicBackends } from "fastly:experimental";
-
 var timer = 0;
 export var DEBUG = 0;
 
@@ -33,6 +29,7 @@ async function handleRequest(event) {
     let VERSION = env("FASTLY_SERVICE_VERSION");
     let HOST = env("FASTLY_HOSTNAME");
     let redis = "";
+    DEBUG = 0; // Ensure this remains off unless toggled. In a reusable sandbox this ensures desired behavior.
 
     const { request, client } = event;
     
@@ -42,19 +39,18 @@ async function handleRequest(event) {
     let globalConfig = await fetchGlobalConfig();
 
     // If we pass a Fastly-Debug header, set debug otherwise use the global config value
-    request.headers.has("Fastly-Debug")?DEBUG=1:DEBUG=globalConfig.forceDebug;
-
+    // request.headers.has("Fastly-Debug")?DEBUG=1:DEBUG=globalConfig.forceDebug;
+    DEBUG = globalConfig.forceDebug;
+    
     const url = new URL(request.url);
     let queuePath = url.pathname;
-
-    if(DEBUG) console.log(`=> Incoming request : ${url}`);
 
     // Check the global whitelist first, so we don't incur any penalty on those.
     if (globalConfig.whitelist.includes(queuePath)) {
         if(DEBUG) console.log(`=> Whitelisted: ${queuePath}`);
         return await handleAuthorizedRequest(request);
     }
-
+    
     // Handle global administration 
     if(url.pathname === globalConfig.adminPath)
         return await handleAdminRequest(request, url.pathname, globalConfig, redis);
@@ -63,12 +59,16 @@ async function handleRequest(event) {
     // No queue config ? Let them have the page.
     let queueName = "";
     
+
+    if(DEBUG) console.log(`=> Incoming request : ${url}`);
+
     if(DEBUG) console.log(`:: QueuePath: ${queuePath}`);
-    globalConfig.queues.forEach(queue => {
-        let pathRegex = new RegExp(queue[0]);
+    
+    for (const queue of globalConfig.queues) {
+        const pathRegex = new RegExp(queue[0]);
         if(DEBUG) console.log(`::- Checking queue [${queue[1]}] with path [${queue[0]}]`)
-        if(pathRegex.test(queuePath)) queueName = queue[1];
-    });
+        if (pathRegex.test(queuePath)) queueName = queue[1];
+    }
     
     // No queue config matching this path at all
     if(!queueName)
@@ -76,7 +76,7 @@ async function handleRequest(event) {
   
     // Found a queue configuration, load and process
     let queueConfig = await fetchQueueConfig(globalConfig, queueName);
-    if(!queueConfig) // Error handling, this should never occur in normal operations
+    if(!queueConfig) // Error handling, this should never occur in normal operations, fail open
         return await handleAuthorizedRequest(request);
   
      // Configure the Redis interface.
@@ -114,8 +114,8 @@ async function handleRequest(event) {
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
             var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
-                issuer: 'urn:example:issuer',
-                audience: 'urn:example:audience',
+                issuer: `${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`,
+                audience: url.hostname,
                 subject: queueConfig.queue.queueName,
             })
             
@@ -125,24 +125,29 @@ async function handleRequest(event) {
             if(DEBUG) 
                 console.error(`=> Expired or Invalid token (${queueConfig.queue.queueName}), new token will be issued.\n==> Error: ${e}`);
         }
-        if(DEBUG) console.log(`=> Validated an ${alg} token, took ${performance.now()-timer} ms`);    
+        if(DEBUG) {
+            timer = performance.now()-timer;
+            console.log(`=> Validated an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);    
+        }
+        console.log(`Now: ${Date.now()}`);
+        console.log(`Exp: ${payload.exp}`);
         
-        // We have a properly signed cookie, let check the internals      
+        // We have a properly signed cookie, lets check the internals      
         if(payload) {
-            var UUIDPosition = await Store.checkQueuePosition(redis, queueConfig, payload.UUID);
-            
             isValid =
                 payload &&
                 validate(payload.UUID) &&
-                (UUIDPosition === payload.position) &&
-                new Date(payload.expiry) > Date.now();
+                // (UUIDPosition === payload.position) &&
+                (await Store.checkQueuePosition(redis, queueConfig, payload.UUID) == payload.position) &&
+                 payload.exp > Date.now();
         }        
 
         if (DEBUG) console.log(`=> Token : isvalid:${isValid} payload:`,payload);
     }
 
     // Initialise properties used to construct a response.
-    let newToken = true;        // new JWT Token
+    let issueToken = true;      // default is to issue a new Token
+    let newToken = null;        // newly issued token
     let visitorPosition = null; // Position in Queue
     let reqsThisPeriod = null;  // # of new queue requests this period
     let tokenUUID = null;
@@ -150,21 +155,22 @@ async function handleRequest(event) {
     if (isValid) {
         visitorPosition = payload.position;
         tokenUUID = payload.UUID;
-        newToken = false;
+        issueToken = false;
 
         // If cookie expiry is within the next refresh interval, then automatically issue a new cookie,
         // so they don't lose their place in line.
-        if(new Date(payload.expiry) - Date.now() <= (queueConfig.queue.refreshInterval*1000)) {
+        if(new Date(payload.exp) - Date.now() <= (queueConfig.queue.refreshInterval*1000)) {
+            issueToken = true;
+
             if(DEBUG) console.log(`==> Token valid, but expiring, reissuing`);
-            newToken = true;
 
             // Update TTL on existing db record for this UUID
             if(!await Store.updateVisitorTTL(redis, queueConfig, tokenUUID)) 
-                console.log("==> Unable to update visitor TTL");                
+                console.log(`==> Unable to update TTL for UUID ${tokenUUID}`);                
         }
     }
 
-    if(newToken) {
+    if(issueToken) {
         
         if(!tokenUUID){
             // New visitor, add them to the queue
@@ -173,16 +179,17 @@ async function handleRequest(event) {
         }
 
         // TODO - if the cookie expires after the queue does, set the expiry to 1s after the queue expires
-        // Sign a JWT with the visitor's position.
-        tokenExpiration = new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000));
+        // Sign a JWT with the visitor's position.+fa
+        // let tokenExpiration = new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000));
+        let tokenExpiration = Date.now() + (queueConfig.queue.cookieExpiry * 1000);
 
         if(DEBUG) timer = performance.now();        
         try {
-            newToken = await new jose.SignJWT({ 'position': visitorPosition, 'expiry':tokenExpiration, 'UUID':tokenUUID })
+            newToken = await new jose.SignJWT({ 'position': visitorPosition, 'UUID':tokenUUID })
                 .setProtectedHeader( { alg:queueConfig.privateKey.alg })
                 .setIssuedAt()
-                .setIssuer('urn:example:issuer')
-                .setAudience('urn:example:audience')
+                .setIssuer(`${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`)
+                .setAudience(url.hostname)
                 .setExpirationTime(tokenExpiration)
                 .setSubject(queueConfig.queue.queueName)
                 .sign(queueConfig.privateKey)
@@ -190,7 +197,10 @@ async function handleRequest(event) {
             console.log(`=> Signing Error: ${e}\n==> Token was NOT created`);
         }      
 
-        if(DEBUG) console.log(`=> Created an ${alg} token, took ${performance.now()-timer} ms`);
+        if(DEBUG) {
+            timer = performance.now()-timer;
+            console.log(`=> Created an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);
+        }
     }
 
     // Fetch the current queue cursor
@@ -213,7 +223,7 @@ async function handleRequest(event) {
         // The 1st request during the new period will automatically bump the auto record, since the 1st request will always set
         // reqsThisPeriod to 1.
         if (reqsThisPeriod === 1) {
-            if(DEBUG) console.log(`=> Allowing the next ${queueConfig.queue.automaticQuantity} queue memebers`);
+            if(DEBUG) console.log(`=> Allowing the next ${queueConfig.queue.automaticQuantity} queue members`);
             
             queueCursor = await Store.incrementQueueCursor( redis, queueConfig, queueConfig.queue.automaticQuantity );
 
@@ -229,12 +239,13 @@ async function handleRequest(event) {
     
     // Set a cookie on the response if needed and return it to the client.
     // There can be multiple set-cookie headers, use append, and not get so that any other
-    // set-cookies don't get overwritten.
-    if (newToken)
+    // set-cookies don't get overwritten. If token creation fails, don't set a garbage/empty cookie.
+    if (issueToken && newToken) {
         response.headers.append(
             "Set-Cookie",
-            `${queueConfig.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${queueConfig.queue.cookieExpiry}; SameSite=None`
+            `${queueConfig.queue.cookieName}=${newToken}; path=/; Secure; HttpOnly; Max-Age=${queueConfig.queue.cookieExpiry}; SameSite=Strict`
         );
+    }
     
     // Log the request and response.
     log(
@@ -250,7 +261,8 @@ async function handleRequest(event) {
     );
     
     // Log the # of redis operations to the console, this can be used for billing estimates
-    if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations in ${queueConfig.redistimer} ms.`);
+    if(DEBUG) console.log(`=> Used ${queueConfig.rediscount} redis operations in ${queueConfig.redistimer.toFixed(4)} ms.`);
+
     return response;
 }
 
@@ -265,18 +277,29 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     if (visitorsAhead < 0) visitorsAhead = 0;
 
     // Calculate time remaining in queue
-    // - people ahead of you / (# of users per second we allow) = seconds remaining
-    let queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic);
-    let expireTime = (Date.parse(config.queue.expires) - Date.now()+queueTime) / 1000;
-
-    // Queue expires before the calculated end of the queue. Use that time instead.
-    if(expireTime < queueTime) queueTime = expireTime;
-    
-    let queueDate = new Date(queueTime*1000);
+    // If we're not letting anyone in automatically, this calculation is meaningless,
+    // Set the time to 1 day
+    let queueTime = 0;
+    let expireTime = 0;
+    let queueDate = new Date();
     let queueString = "";
+    if(config.queue.automatic <= 0 || config.queue.automaticQuantity <= 0) queueTime = 86400;
+    else {
+        // - people ahead of you / (# of users per second we allow) = seconds remaining
+        queueTime = visitorsAhead / (config.queue.automaticQuantity / config.queue.automatic);
+        expireTime = (Date.parse(config.queue.expires) - Date.now()+queueTime) / 1000;
+
+        if(DEBUG){ console.log(`queueTime: ${queueTime}, expireTime: ${expireTime}`); }
+        
+        // Queue expires before the calculated end of the queue. Use that time instead.
+        if(expireTime < queueTime) queueTime = expireTime;
+        
+        queueDate = new Date(queueTime*1000);
+    }
     
     // Make a string for the queue time remaining.
-    if( queueTime > 86400)
+    // Don't care about time if it's a day or more.
+    if( queueTime >= 86400)
          queueString = "unknown";
     else if(queueTime > 3600)
         // We have  > 1 hour remaining
@@ -298,6 +321,10 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
             headers: {
                 "Content-Type": "text/html",
                 "Refresh": config.queue.refreshInterval,
+                "Content-Security-Policy": "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com",
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
             },
         });
 }
@@ -310,7 +337,13 @@ function getQueueCookie(req, cookieName) {
             const parts = cookie.split('=');
             const name = parts.shift().trim();
             if(name === cookieName) {
+                try {
                   cookieData = decodeURIComponent(parts.join('='));
+                } catch(e) {
+                    // Something wrong with decide, return a null, log the error
+                    console.log("Cookie decode error : ", e);
+                    cookieData = "";
+                }
             }
         });
     }
@@ -320,12 +353,40 @@ function getQueueCookie(req, cookieName) {
 // Injects props into the given template (handlebars syntax)
 export function processView(template, props) {
     for (let key in props) {
-      template = template.replace(
-        new RegExp(`{{\\s?${key}\\s?}}`, "g"),
-        props[key]
-      );
+        // User input - sanitize so it can't be maliciously used. Since we don't apparently support
+        // the new RegExp.escape(), this is a common pattern (See func for detauls)
+        let safe_key  = escapeStringRegexp(key);
+        let safe_prop = escapeHTML(props[key]);
+
+        template = template.replace(
+            new RegExp(`{{\\s?${safe_key}\\s?}}`, "g"), safe_prop
+        );
     }
     return template;
+}
+
+// Escape HTML control/document characters
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, function(m) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[m];
+  });
+}
+
+function escapeStringRegexp(string) {
+    if (typeof string !== 'string') {
+        throw new TypeError('Expected a string');
+    }
+    // Escape characters with special meaning either inside or outside character classes.
+    // Use a optimized regex to find and escape them.
+    return string
+        .replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+        .replace(/-/g, '\\x2d');
 }
 
 // Not using this anymore, left for future consideration

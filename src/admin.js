@@ -22,6 +22,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
             status: 401,
             headers: {
                 "WWW-Authenticate": 'Basic realm="Global Queue Administration"',
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
             },
         });
     }
@@ -44,16 +45,21 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     if(DEBUG) console.log(`==> Admin: Configure request for [${configName}]`);
 
     // If we're posting new data, then update the record accordingly, and write it back to the KV store
-    if(req.method === "POST") {
-        const reqBody = new String(await req.text());
+    const contentType = req.headers.get("content-type");
+    if(req.method === "POST" && contentType === "application/x-www-form-urlencoded") {
+        const reqBody = await req.text();
     
         newConfig = {};
         if (reqBody) {
             reqBody.split('&').forEach(param => {
                 const parts = param.split('=');
                 const name = parts.shift().trim();
-                value = decodeURIComponent(parts.join('='));
-                newConfig[`${name}`]=`${value}`;
+                const value = decodeURIComponent(parts.join('='));
+
+                if(name == "adminPassword" && value == "") { 1; }
+                else {            
+                    newConfig[`${name}`]=`${value}`;
+                }
             });
         }
 
@@ -61,11 +67,11 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
         let redirectPath = "";
         if(DEBUG) console.log(`==> Updating configuration for queue [${configName}]`);
         if(configName === "globalConfig") {
-            updateConfig("globalConfig", globalConfig, newConfig);
+            await updateConfig("globalConfig", globalConfig, newConfig);
             globalConfig = await fetchGlobalConfig();
             redirectPath = globalConfig.adminPath;
         } else {
-            updateConfig(configName, queueConfig.queue, newConfig);
+            await updateConfig(configName, queueConfig.queue, newConfig);
             queueConfig = await fetchQueueConfig(globalConfig, configName);
             redirectPath = `${globalConfig.adminPath}?queue=${queueConfig.queue.queueName}`;
         }
@@ -87,7 +93,9 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                 
                 // Are we allowing users in for this queue ?
                 if(reqUrl.searchParams.has("amt")) {
-                    let amt = parseInt(reqUrl.searchParams.get("amt"));
+                    let amt = parseInt(reqUrl.searchParams.get("amt"), 10);
+                    // Place bounds on the allowed users through the gate.
+                    if (isNaN(amt) || amt < 0 || amt > 99999) amt = 0;
                     if(amt) {
                         if(DEBUG) 
                             console.log(`=> Admin allowed ${amt} users in for queue ${queueConfig.queue.queueName}`);
@@ -120,7 +128,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                         <th colspan=2>Queue configuration for ${queueConfig.queue.queueName}</th>
                         <tr></tr>
                         <tr><td><label for="queueName">Queue Name</label></td>
-                        <td><input type="text" name="queueName" value="${queueConfig.queue.queueName}"></td>
+                        <td><input type="text" name="queueName" value="${queueConfig.queue.queueName}" pattern="[a-zA-Z0-9_-]"></td>
                         <tr><td><label for="queuePath">Queue Path (key)</label></td>
                         <td><input type="text" name="queuePath" value="${queueConfig.queue.queuePath}"></td>
                         <tr> <td><label for="active">Is this queue Active</label></td>
@@ -166,7 +174,12 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                         <p>There are <em>${visitorsWaiting}</em> visitors waiting to enter.</p>
                     </body></html>`,
                     { status:200,
-                        headers: { "Content-Type": "text/html", },
+                        headers: { "Content-Type": "text/html",
+                            "Content-Security-Policy": "default-src 'none'; form-action 'self'",
+                            "X-Frame-Options": "DENY",
+                            "X-Content-Type-Options": "nosniff",
+                            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                         },
                     }
                     );
             } else {
@@ -187,7 +200,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                     <tr> <td><label for="adminPath">Queue admin path</label></td>
                     <td><input type="text" name="adminPath" value="${globalConfig.adminPath}"></td>
                     <tr> <td><label for="adminPassword">Default queue admin password (alphanumeric only, 4-32 chars)</label></td>
-                    <td><input type="password" name="adminPassword" value="${globalConfig.adminPassword}" pattern="[0-9a-zA-Z]{4,32}"></td>                
+                    <td><input type="password" name="adminPassword" value="" pattern="[0-9a-zA-Z]{4,32}"></td>                
                     <tr> <td><label for="refreshInterval">Queue page refresh interval (secs)</label></td>
                     <td><input type="number" min=0 max=86400 name="refreshInterval" value="${globalConfig.refreshInterval}"></td>
                     <tr> <td><label for="cookieName">Default cookie name (beware collisions!)</label></td>
@@ -216,17 +229,22 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
                     <table>
                     <th>Name</th><th>Path</th>`;
 
-                    globalConfig.queues.forEach(queue => {
+                    for (const queue of globalConfig.queues) {
                         adminBody += `<tr><td width=40>${queue[1]}</td><td>${queue[0]}</td></tr>`;
-                    });
+                    }
 
                     adminBody += `</table></body></html>`;
             
                 return new Response( adminBody, 
                     { 
                         status:200,
-                        headers: { "Content-Type": "text/html", },
-                    }
+                        headers: { "Content-Type": "text/html",
+                            "Content-Security-Policy": "default-src 'none'; form-action 'self'",
+                            "X-Frame-Options": "DENY",
+                            "X-Content-Type-Options": "nosniff",
+                            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                        }, 
+                    }  
                         );       
             }
         } else {
@@ -235,14 +253,14 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     }
 }
 
-function updateConfig(configName, config, newConfig) {
+async function updateConfig(configName, config, newConfig) {
     // Copy the config elements, and write it.
-    for( conf in newConfig )
+    for( const conf in newConfig )
         config[conf] = newConfig[conf];
 
     // Since the checkboxes might not be present (unchecked), we need to validate them individually (forceDbug and active)
     if(!newConfig.forceDebug) config.forceDebug = false;
     if(!newConfig.active) config.active = false;
 
-    writeConfig(configName, JSON.stringify(config));
+    await writeConfig(configName, JSON.stringify(config));
 }

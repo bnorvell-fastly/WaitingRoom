@@ -12,6 +12,9 @@ export default function log(
 ) {
   
   const endpoint = new Logger(endpointName);
+
+  if(DEBUG) return;
+  
   endpoint.log(
     JSON.stringify({
       timestamp: new Date().toISOString(),
@@ -33,8 +36,8 @@ export default function log(
   );
 }
 
-// Geolocation is not supported by the local testing server,
-// so we just return an empty object if it fails.
+// Geolocation is now supported by the local testing server, but may not be setup properly.
+// Return an empty object if it fails.
 function tryGeo(client) {
   try {
     return {

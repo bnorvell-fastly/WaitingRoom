@@ -58,7 +58,7 @@ export async function writeConfig(key, config) {
         return "";
     }
     
-    put_kv_entry(kv_store, key, config);
+    await put_kv_entry(kv_store, key, config);
 }
 
 // Get global configuration (contains all queue config references, and system defaults)
@@ -76,10 +76,10 @@ export async function fetchGlobalConfig() {
     if(!globalConfig) {
         globalConfig = {
             "queueName": "global_config",
-            "forceDebug": true,
+            "forceDebug": 0,
             "active": false,
             "expires": "",
-            "adminPassword": "change me soon",
+            "adminPassword": "",
             "adminPath": "QueueAdmin",
             "queues": [
                 [ "sample_queue", "/sample_path" ],
@@ -98,6 +98,7 @@ export async function fetchGlobalConfig() {
             "queuePage": "global_Queue",
             "adminPage": "global_Admin",
             "privateKey": "global_privateKey",
+
             "publicKey": "global_publicKey"                
         };
 
@@ -147,11 +148,11 @@ export async function fetchQueueConfig(globalConfig, queueName) {
     if(!queueConfig.adminPassword) queueConfig.adminPassword = globalConfig.adminPassword;
 
     if(!queueConfig.refreshInterval) queueConfig.refreshInterval = globalConfig.refreshInterval;
-    if(!queueConfig.cookieName) queueConfig.cookieName = globelConfig.cookieName;
+    if(!queueConfig.cookieName) queueConfig.cookieName = globalConfig.cookieName;
     if(!queueConfig.cookieExpiry) queueConfig.cookieExpiry = globalConfig.cookieExpiry;
     if(!queueConfig.tokenExpiry) queueConfig.tokenExpiry = globalConfig.tokenExpiry;
     if(!queueConfig.automatic) queueConfig.automatic = globalConfig.automatic;
-    if(!queueConfig.automaticQuantitiy) queueConfig.automaticQuantitiy = globalConfig.automaticQuantitiy;
+    if(!queueConfig.automaticQuantity) queueConfig.automaticQuantity = globalConfig.automaticQuantity;
     if(!queueConfig.redisUrl) queueConfig.redisUrl = globalConfig.redisUrl;
     if(!queueConfig.redisToken) queueConfig.redisToken = globalConfig.redisToken;
     if(!queueConfig.queuePage) queueConfig.queuePage = globalConfig.queuePage;

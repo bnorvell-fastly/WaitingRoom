@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fila Virtual</title>
+    <style>
+        /* Set the background color of the page to blue */
+        body, html {
+            height: 100%;
+            margin: 0;
+            background-color: #02c6dd; /* Blue background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: 'Calibri', sans-serif; /* Default font */
+        }
+
+        /* Add a custom font to the page title */
+        h1 {
+            font-family: 'Verdana', sans-serif; /* Custom font for the title */
+            font-size: 2.5rem; /* Custom font size */
+            color: #0c396f; /* Text color */
+            margin-bottom: 20px; /* Space between text and image */
+        }
+
+        /* Style for the image */
+        img {
+            max-width: 110%; /* Limit image size */
+            height: auto;
+            border-radius: 10px; /* Optional: Adds rounded corners */
+        }
+
+        /* Style for the text above the image */
+        .image-text {
+            font-size: 2.0rem; /* Text size for the description */
+            color: #0c396f;
+            margin-bottom: 20px; /* Space between the text and the image */
+            line-height: 1.8; /* Adds separation between lines */
+        }
+        .image-text-queue {
+            font-size: 1.5rem; /* Text size for the description */
+            color: #0c396f;
+            margin-bottom: 20px; /* Space between the text and the image */
+            line-height: 1.8; /* Adds separation between lines */
+        }
+        .image-text strong {
+            font-weight: bold; /* Make the first line bold */
+        }
+
+        .image-text span {
+            display: block; /* Make sure the text breaks into two lines */
+        }
+    </style>
+</head>
+<body>
+    <div class="image-text">
+        <span><strong>¡Ya estas muy cerca de Comprar SMART!</strong></span>
+        <span>Cuando sea tu turno podrás navegar dentro del sitio web</span>
+    </div>
+    <div class="image-text-queue">
+        <p>Hay <em>{{ visitorsAhead }}</em> personas esperando adelante de tí.</p>
+        <p>El tiempo de espera estimado es {{ estimatedTime }} </p>
+    </div>
+
+    <a href="https://jetsmart.com/cl/es/offline?banner=on" target="_blank" style="display:inline-block;">
+        <img class="foto" src="https://assets-us-west-2.queue-it.net/jetsmart/userdata/top-22-01-2024.png">
+    </a>
+</body>
+</html>

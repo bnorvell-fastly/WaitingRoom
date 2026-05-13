@@ -1,6 +1,12 @@
+.DS_Store
+test.json
+keyGen.sh
 /node_modules
 /bin
 /pkg
 /secrets
 /src/secrets
 /src/kv-store
+fastly.toml
+SECURITY_TODO.md
+SUGGESTIONS.md

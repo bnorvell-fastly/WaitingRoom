@@ -1,13 +1,20 @@
 {
     "queueName": "global_config",
-    "forceDebug": true,
-    "active": false,
+    "forceDebug": "true",
+    "active": "false",
     "expires": "",
-    "adminPassword": "password",
-    "adminPath": "/QueueAdmin",
+    "adminPassword": "<admin_password_here>",
+    "adminPath": "<admin_path_here>
+    ",
     "queues": [
-        [ "/sample-path", "sample"],
-        [ "^/html", "html"]
+        [
+            "/sample-path",
+            "sample"
+        ],
+        [
+            "^/html",
+            "html"
+        ]
     ],
     "whitelist": [
         "/robots.txt",
@@ -18,7 +25,7 @@
     "cookieExpiry": 86400,
     "automatic": 0,
     "automaticQuantity": 0,
-    "redisUrl": "https://your.redis.url:443",
+    "redisUrl": "<your redis instance here>",
     "redisToken": "global_redisToken",
     "queuePage": "global_Queue",
     "adminPage": "global_Admin",
