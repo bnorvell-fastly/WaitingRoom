@@ -131,8 +131,6 @@ async function handleRequest(event) {
             timer = performance.now()-timer;
             console.log(`=> Validated an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);    
         }
-        console.log(`Now: ${Date.now()}`);
-        console.log(`Exp: ${payload.exp}`);
         
         // We have a properly signed cookie, lets check the internals      
         if(payload) {
