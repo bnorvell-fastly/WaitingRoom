@@ -12,8 +12,6 @@ export default function log(
 ) {
   
   const endpoint = new Logger(endpointName);
-
-  if(DEBUG) return;
   
   endpoint.log(
     JSON.stringify({

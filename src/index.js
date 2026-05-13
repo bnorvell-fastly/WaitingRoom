@@ -299,14 +299,18 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
     
     // Make a string for the queue time remaining.
     // Don't care about time if it's a day or more.
+    const hours   = Math.floor(queueTime / 3600);
+    const minutes = Math.floor((queueTime % 3600) / 60);
+    const seconds = Math.floor(queueTime % 60);
+    
     if( queueTime >= 86400)
          queueString = "unknown";
     else if(queueTime > 3600)
         // We have  > 1 hour remaining
-        queueString = `${queueDate.getHours()} hours, ${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
+        queueString = `${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
     else
         // < 1 hour remaining
-        queueString = `${queueDate.getMinutes()} minutes, and ${queueDate.getSeconds()} seconds`;
+        queueString = `${minutes} minutes, and ${seconds} seconds`;
     
 
     return new Response(
