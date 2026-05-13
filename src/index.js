@@ -108,12 +108,14 @@ async function handleRequest(event) {
     let jwt_cookie = getQueueCookie(request, queueConfig.queue.cookieName);
 
     let isValid = 0;
+    let payload;
+
     if(jwt_cookie) {
         
         if(DEBUG) timer = performance.now();
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
-            var { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
+            { payload, protectedHeader } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
                 issuer: `${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`,
                 audience: url.hostname,
                 subject: queueConfig.queue.queueName,
@@ -232,10 +234,9 @@ async function handleRequest(event) {
         }
     }
 
-    if (!permitted) 
-        var response = await handleUnauthorizedRequest( request, queueConfig, visitorPosition - queueCursor);
-    else
-        var response = await handleAuthorizedRequest(request);
+    const response = permitted
+        ? await handleAuthorizedRequest(request)
+        : await handleUnauthorizedRequest(request, queueConfig, visitorPosition - queueCursor);
     
     // Set a cookie on the response if needed and return it to the client.
     // There can be multiple set-cookie headers, use append, and not get so that any other
