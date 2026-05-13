@@ -4,9 +4,6 @@ import { DEBUG, processView } from "./index.js";
 import * as Store from "./store.js";
 import { writeConfig, fetchGlobalConfig, fetchQueueConfig } from "./config.js";
 
-import * as base64 from "base-64";
-
-
 // Handle an incoming request to an admin-related endpoint.
 export async function handleAdminRequest(req, path, globalConfig, redis) {
     let newConfig = {};           
@@ -16,7 +13,7 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     const reqUrl = new URL(req.url);
     
     // This is not secure, replace it with something far more robust
-    if (req.headers.get("Authorization") != `Basic ${base64.encode(`admin:${globalConfig.adminPassword}`)}`)
+    if (req.headers.get("Authorization") != `Basic ${btoa(`admin:${globalConfig.adminPassword}`)}`)
     {
         return new Response(null, {
             status: 401,
