@@ -10,6 +10,10 @@ export async function handleAdminRequest(req, path, globalConfig, redis) {
     let configName = "globalConfig";
     let queueConfig = "";
 
+    if (!globalConfig.adminPassword) {
+        return new Response("Admin interface disabled: no password configured", { status: 503 });
+    }
+    
     const reqUrl = new URL(req.url);
     
     // This is not secure, replace it with something far more robust
