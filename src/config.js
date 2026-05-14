@@ -146,12 +146,12 @@ export async function fetchQueueConfig(globalConfig, queueName) {
     if(!queueConfig.adminPath) queueConfig.adminPath = globalConfig.adminPath;
     if(!queueConfig.adminPassword) queueConfig.adminPassword = globalConfig.adminPassword;
 
-    if(!queueConfig.refreshInterval) queueConfig.refreshInterval = globalConfig.refreshInterval;
+    if(!queueConfig.refreshInterval == null) queueConfig.refreshInterval = globalConfig.refreshInterval;
     if(!queueConfig.cookieName) queueConfig.cookieName = globalConfig.cookieName;
-    if(!queueConfig.cookieExpiry) queueConfig.cookieExpiry = globalConfig.cookieExpiry;
-    if(!queueConfig.tokenExpiry) queueConfig.tokenExpiry = globalConfig.tokenExpiry;
-    if(!queueConfig.automatic) queueConfig.automatic = globalConfig.automatic;
-    if(!queueConfig.automaticQuantity) queueConfig.automaticQuantity = globalConfig.automaticQuantity;
+    if(!queueConfig.cookieExpiry == null) queueConfig.cookieExpiry = globalConfig.cookieExpiry;
+    if(!queueConfig.tokenExpiry == null) queueConfig.tokenExpiry = globalConfig.tokenExpiry;
+    if(!queueConfig.automatic == null) queueConfig.automatic = globalConfig.automatic;
+    if(!queueConfig.automaticQuantity == null) queueConfig.automaticQuantity = globalConfig.automaticQuantity;
     if(!queueConfig.redisUrl) queueConfig.redisUrl = globalConfig.redisUrl;
     if(!queueConfig.redisToken) queueConfig.redisToken = globalConfig.redisToken;
     if(!queueConfig.queuePage) queueConfig.queuePage = globalConfig.queuePage;
