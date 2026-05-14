@@ -59,7 +59,13 @@ async function handleRequest(event) {
     // No queue config ? Let them have the page.
     let queue = "";
     for (const {queueName, queuePath} of globalConfig.queues) {
-        const pathRegex = new RegExp(queuePath);
+        let pathRegex;
+        try {
+            pathRegex = new RegExp(queuePath);
+        } catch (e) {
+            console.error(`Invalid queue path regex [${queuePath}]: ${e}`);
+            continue;
+        }
         if(DEBUG) console.log(`::- Checking queue [${queueName}] with path [${queuePath}]`)
         if (pathRegex.test(url.pathname)) queue = queueName;
     }
