@@ -1,4 +1,3 @@
-import { ConfigStore } from "fastly:config-store"; // Future use
 import { KVStore } from "fastly:kv-store";
 import { SecretStore } from "fastly:secret-store";
 import { DEBUG } from "./index.js";

@@ -17,7 +17,7 @@ export default function log(
     JSON.stringify({
       timestamp: new Date().toISOString(),
       clientAddress: client.address,
-      requestUrl: req.url.toString(),
+      requestUrl: new URL(req.url).pathname,
       requestMethod: req.method,
       requestReferer: (() => { try { return new URL(req.headers.get("Referer") ?? '').origin; } catch { return null; } })(),
       requestUserAgent: req.headers.get("User-Agent"),
