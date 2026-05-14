@@ -52,7 +52,7 @@ async function handleRequest(event) {
     
     // Handle global administration
     // Check with a forced / as well, in case someone does not provide it.
-    if(url.pathname === (globalConfig.adminPath || "/".globalConfig.adminPath))
+    if(url.pathname === globalConfig.adminPath)
         return await handleAdminRequest(request, url.pathname, globalConfig, redis);
     
     // Find the queue in the global config object, then load it's configuration
@@ -120,7 +120,7 @@ async function handleRequest(event) {
                 audience: url.hostname,
                 subject: queueConfig.queue.queueName,
             }))
-            
+            if(DEBUG) console.log(`==> PAYLOAD: ${payload.UUID}, ${payload.position}, ${payload.exp}`);
         } catch (e) {
             // Log error here if desired. A failed token could be one that's expired, or someone trying to do 
             // something interesting with the cookie to subvert the queue.
@@ -130,7 +130,6 @@ async function handleRequest(event) {
         if(DEBUG) {
             timer = performance.now()-timer;
             console.log(`=> Validated an ${queueConfig.privateKey.alg} token in ${timer.toFixed(4)} ms.`);
-            console.log(`==> PAYLOAD: ${payload.UUID}, ${payload.position}, ${payload.exp}`); 
         }
         
         // We have a properly signed cookie, lets check the internals      
@@ -304,7 +303,10 @@ async function handleUnauthorizedRequest(req, config, visitorsAhead) {
          queueString = "unknown";
     else if(queueTime > 3600)
         // We have  > 1 hour remaining
-        queueString = `${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
+        if(hours === 1)
+            queueString = `${hours} hour, ${minutes} minutes, and ${seconds} seconds`;
+        else    
+            queueString = `${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
     else
         // < 1 hour remaining
         queueString = `${minutes} minutes, and ${seconds} seconds`;
