@@ -42,7 +42,7 @@ async function handleRequest(event) {
     if(DEBUG) console.log(`=> Service Version : ${VERSION} running on ${HOST} from ${client.address} <=`);
 
     const url = new URL(request.url);
-    let queuePath = url.pathname;
+    if(DEBUG) console.log(`=> Incoming request : ${url}`);let queuePath = url.pathname;
 
     // Check the global whitelist first, so we don't incur any penalty on those.
     if (globalConfig.whitelist.includes(queuePath)) {
@@ -50,16 +50,14 @@ async function handleRequest(event) {
         return await handleAuthorizedRequest(request);
     }
     
-    // Handle global administration 
-    if(url.pathname === globalConfig.adminPath)
+    // Handle global administration
+    // Check with a forced / as well, in case someone does not provide it.
+    if(url.pathname === (globalConfig.adminPath || "/".globalConfig.adminPath)
         return await handleAdminRequest(request, url.pathname, globalConfig, redis);
     
     // Find the queue in the global config object, then load it's configuration
     // No queue config ? Let them have the page.
     let queueName = "";
-    
-
-    if(DEBUG) console.log(`=> Incoming request : ${url}`);
 
     if(DEBUG) console.log(`:: QueuePath: ${queuePath}`);
     

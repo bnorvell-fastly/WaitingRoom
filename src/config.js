@@ -80,7 +80,7 @@ export async function fetchGlobalConfig() {
             "active": false,
             "expires": "",
             "adminPassword": "",
-            "adminPath": "QueueAdmin",
+            "adminPath": "/QueueAdmin",
             "queues": [
                 [ "sample_queue", "/sample_path" ],
             ],
