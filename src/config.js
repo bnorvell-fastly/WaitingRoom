@@ -83,7 +83,7 @@ export async function fetchGlobalConfig() {
             "adminPassword": "",
             "adminPath": "/QueueAdmin",
             "queues": [
-                [ "sample_queue", "/sample_path" ],
+                { "queueName":"sample_queue", "queuePath":"/sample_path" },
             ],
             "whitelist": [
                 "/robots.txt",

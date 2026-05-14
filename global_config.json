@@ -7,14 +7,14 @@
     "adminPassword": "<admin_password_here>",
     "adminPath": "<admin_path_here>",
     "queues": [
-        [
-            "/sample-path",
-            "sample"
-        ],
-        [
-            "^/html",
-            "html"
-        ]
+        {
+            "queuePath": "/sample-path",
+            "queueName": "sample"
+        },
+        {
+            "queuePath": "^/html",
+            "queueName": "html"
+        }
     ],
     "whitelist": [
         "/robots.txt",

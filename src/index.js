@@ -52,27 +52,24 @@ async function handleRequest(event) {
     
     // Handle global administration
     // Check with a forced / as well, in case someone does not provide it.
-    if(url.pathname === (globalConfig.adminPath || "/".globalConfig.adminPath)
+    if(url.pathname === (globalConfig.adminPath || "/".globalConfig.adminPath))
         return await handleAdminRequest(request, url.pathname, globalConfig, redis);
     
     // Find the queue in the global config object, then load it's configuration
     // No queue config ? Let them have the page.
-    let queueName = "";
-
-    if(DEBUG) console.log(`:: QueuePath: ${queuePath}`);
-    
-    for (const queue of globalConfig.queues) {
-        const pathRegex = new RegExp(queue[0]);
-        if(DEBUG) console.log(`::- Checking queue [${queue[1]}] with path [${queue[0]}]`)
-        if (pathRegex.test(queuePath)) queueName = queue[1];
+    let queue = "";
+    for (const {queueName, queuePath} of globalConfig.queues) {
+        const pathRegex = new RegExp(queuePath);
+        if(DEBUG) console.log(`::- Checking queue [${queueName}] with path [${queuePath}]`)
+        if (pathRegex.test(url.pathname)) queue = queueName;
     }
     
     // No queue config matching this path at all
-    if(!queueName)
+    if(!queue)
         return await handleAuthorizedRequest(request);
   
     // Found a queue configuration, load and process
-    let queueConfig = await fetchQueueConfig(globalConfig, queueName);
+    let queueConfig = await fetchQueueConfig(globalConfig, queue);
 
     // This should never happen. Fail in the manner configured in the global Config
     if(!queueConfig) {
@@ -87,14 +84,14 @@ async function handleRequest(event) {
 
     // Allow requests to assets that are not protected by a queue, or the queue is disabled.
     if (!queueConfig.queue.active) {
-        if(DEBUG) console.log(`==> Queue [${queueName}] is not active`);
+        if(DEBUG) console.log(`==> Queue [${queueConfig.queue.queueName}] is not active`);
         return await handleAuthorizedRequest(request);
     }
 
     // Allow requests when the queue has expired. Separate logic for this in case we need to add
     // additional processing in the future 
     if (queueConfig.queue.expires && Date.now() > new Date(queueConfig.queue.expires)) {
-        if(DEBUG) console.log(`==> Queue [${queueName}] expired at ${new Date(queueConfig.queue.expires)}`);
+        if(DEBUG) console.log(`==> Queue [${queueConfig.queue.queueName}] expired at ${new Date(queueConfig.queue.expires)}`);
         return await handleAuthorizedRequest(request);        
     }
     
