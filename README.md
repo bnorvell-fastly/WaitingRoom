@@ -156,7 +156,10 @@ npm install
 
 4. Configure your environment:
    - Update `global_config.json` with your settings
-   - Update `fastly.toml` with your service ID and backend URLs
+   - Create `fastly.toml` from the template (it is git-ignored; do not commit it):
+     ```bash
+     fastly compute init  # or copy from a reference and fill in your service ID and backend URLs
+     ```
    - Create secret store entries for keys and tokens
 
 ### Local Development
@@ -200,8 +203,8 @@ Stored in KV Store as key `globalConfig` (see `global_config.json`):
   "refreshInterval": 15,
   "cookieName": "global-queue",
   "cookieExpiry": 86400,
-  "automatic": 60,
-  "automaticQuantity": 10,
+  "automatic": 0,
+  "automaticQuantity": 0,
   "redisUrl": "https://your-redis.upstash.io:443",
   "redisToken": "global_redisToken",
   "queuePage": "global_Queue",
@@ -234,7 +237,7 @@ Each queue can override global settings (see `queue-config.json`):
   "queueName": "html",
   "queuePath": "^/html",
   "active": true,
-  "expires": "2025-12-31T23:59:59Z",
+  "expires": "2027-12-31T23:59:59Z",
   "geocodes": ["USA", "CAN"],
   "refreshInterval": 15,
   "cookieName": "sample-queue",
@@ -266,6 +269,8 @@ Required entries in KV Store `queueConfig`:
 | `[queueName]` | Queue-specific config | JSON |
 | `global_Queue` | Default waiting room HTML | HTML |
 | `global_Admin` | Admin interface HTML | HTML |
+
+> The HTML templates live in `src/pages/` (`queue.html`, `admin.html`). They are not served directly — their contents must be uploaded to the KV store under the keys referenced by `queuePage` and `adminPage` in the config. Use the Fastly CLI or the Fastly web console to upload them.
 
 ## Queue Management
 
@@ -384,14 +389,15 @@ Waiting-Room/
 │   ├── store.js         # Redis operations
 │   ├── admin.js         # Admin interface handlers
 │   ├── logging.js       # Telemetry and logging
-│   └── pages/           # HTML templates
-│       ├── admin.html
-│       ├── queue.html   # Default waiting room
-│       └── queue-*.html # Custom waiting rooms
+│   ├── pages/           # HTML templates (must be uploaded to KV store)
+│   │   ├── admin.html   # Admin interface template
+│   │   └── queue.html   # Default waiting room template
+│   ├── kv-store/        # Local KV store data (git-ignored, dev only)
+│   └── secrets/         # Local secret store data (git-ignored, dev only)
 ├── global_config.json   # Global config template
 ├── queue-config.json    # Queue config template
 ├── package.json         # Dependencies
-├── fastly.toml          # Fastly configuration
+├── fastly.toml          # Fastly configuration (git-ignored, not committed)
 └── keyGen.sh            # Key generation script
 
 ```
@@ -407,8 +413,9 @@ The build uses AOT (Ahead-of-Time) compilation for optimal performance.
 ### Debugging
 
 Enable debug mode:
-1. Set `forceDebug: true` in global config, or
-2. Send `Fastly-Debug` header with request
+1. Set `forceDebug: true` in global config via the KV store
+
+> Note: the `Fastly-Debug` header toggle is present in the source but currently commented out. Only the `forceDebug` config flag is active.
 
 Debug output includes:
 - Request routing decisions (`src/index.js:46`)
@@ -444,7 +451,6 @@ Debug output includes:
 | `@upstash/redis` | Redis client for Fastly Compute |
 | `jose` | JWT signing and verification |
 | `uuid` | UUID v7 generation |
-| `base-64` | Basic auth encoding |
 
 ## Contributing
 

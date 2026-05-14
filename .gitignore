@@ -1,6 +1,5 @@
 .DS_Store
 test.json
-keyGen.sh
 /node_modules
 /bin
 /pkg
