@@ -355,7 +355,7 @@ function getQueueCookie(req, cookieName) {
 
 // Injects props into the given template (handlebars syntax)
 export function processView(template, props) {
-    for (let key in props) {
+    for (const key of Object.keys(props)) {
         // User input - sanitize so it can't be maliciously used. Since we don't apparently support
         // the new RegExp.escape(), this is a common pattern (See func for detauls)
         let safe_key  = escapeStringRegexp(key);
