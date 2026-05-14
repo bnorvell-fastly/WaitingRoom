@@ -73,9 +73,15 @@ async function handleRequest(event) {
   
     // Found a queue configuration, load and process
     let queueConfig = await fetchQueueConfig(globalConfig, queueName);
-    if(!queueConfig) // Error handling, this should never occur in normal operations, fail open
-        return await handleAuthorizedRequest(request);
-  
+
+    // This should never happen. Fail in the manner configured in the global Config
+    if(!queueConfig) {
+        if(globalConfig.failOpen)
+            return await handleAuthorizedRequest(request);
+        else
+            return await handleUnauthorizedRequest(request);
+    }
+
      // Configure the Redis interface.
     redis = Store.getStore(queueConfig);
 

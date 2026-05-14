@@ -77,6 +77,7 @@ export async function fetchGlobalConfig() {
         globalConfig = {
             "queueName": "global_config",
             "forceDebug": 0,
+            "failOpen": true,
             "active": false,
             "expires": "",
             "adminPassword": "",
@@ -98,7 +99,6 @@ export async function fetchGlobalConfig() {
             "queuePage": "global_Queue",
             "adminPage": "global_Admin",
             "privateKey": "global_privateKey",
-
             "publicKey": "global_publicKey"                
         };
 

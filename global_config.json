@@ -1,6 +1,7 @@
 {
     "queueName": "global_config",
     "forceDebug": "true",
+    "failopen": "true",
     "active": "false",
     "expires": "",
     "adminPassword": "<admin_password_here>",
