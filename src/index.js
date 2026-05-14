@@ -122,7 +122,7 @@ async function handleRequest(event) {
         try {
             // Decode the JWT signature to get the visitor's position in the queue.
             ({ payload } = await jose.jwtVerify(jwt_cookie, queueConfig.publicKey, {
-                algorithms: ['RS256', 'ES256']
+                algorithms: ['RS256', 'ES256'],
                 issuer: `${env("FASTLY_SERVICE_ID")}:${env("FASTLY_SERVICE_VERSION")}`,
                 audience: url.hostname,
                 subject: queueConfig.queue.queueName,
