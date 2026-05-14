@@ -159,7 +159,7 @@ async function handleRequest(event) {
 
         // If cookie expiry is within the next refresh interval, then automatically issue a new cookie,
         // so they don't lose their place in line.
-        if(new Date(payload.exp) - Date.now() <= (queueConfig.queue.refreshInterval*1000)) {
+        if((payload.exp - Math.floor(Date.now() / 1000)) <= queueConfig.queue.refreshInterval) {
             issueToken = true;
 
             if(DEBUG) console.log(`==> Token valid, but expiring, reissuing`);
@@ -180,9 +180,6 @@ async function handleRequest(event) {
 
         // TODO - if the cookie expires after the queue does, set the expiry to 1s after the queue expires
         // Sign a JWT with the visitor's position.+fa
-        // let tokenExpiration = new Date(Date.now() + (queueConfig.queue.cookieExpiry * 1000));
-        let tokenExpiration = Date.now() + (queueConfig.queue.cookieExpiry * 1000);
-
         if(DEBUG) timer = performance.now();        
         try {
             newToken = await new jose.SignJWT({ 'position': visitorPosition, 'UUID':tokenUUID })
