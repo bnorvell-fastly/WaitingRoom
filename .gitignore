@@ -10,3 +10,5 @@ fastly.toml
 SECURITY_TODO.md
 SECURITY_COMPLETED.md
 SUGGESTIONS.md
+src/pages/new/admin-queue.html
+src/pages/new/admin-global.html
